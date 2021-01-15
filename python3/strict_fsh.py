@@ -45,7 +45,7 @@ class FshCheckError(Exception):
 
 class FileSystemHierarchy:
 
-    """We comply with FHS (https://refspecs.linuxfoundation.org/fhs.shtml) and have some our own rules:
+    """We comply with FHS (https://refspecs.linuxfoundation.org/fhs.shtml) but have some our own rules:
        1. Fedora UsrMerge (https://fedoraproject.org/wiki/Features/UsrMove)
        2. using /home/root as root's home directory, and symlink /root to it
        3. toolchain directory in /usr
@@ -104,8 +104,15 @@ class FileSystemHierarchy:
         self._checkEntryMetadata("/mnt", 0o755, "root", "root")
 
         # /opt
-        self._checkDir("/opt")
-        self._checkEntryMetadata("/opt", 0o755, "root", "root")
+        if self._exists("/opt"):
+            # /opt
+            self._checkDir("/opt")
+            self._checkEntryMetadata("/opt", 0o755, "root", "root")
+
+            # /opt/bin
+            if self._exists("/opt/bin"):
+                self._checkDir("/opt/bin")
+                self._checkEntryMetadata("/opt/bin", 0o755, "root", "root")
 
         # /proc
         self._checkDir("/proc")
@@ -224,6 +231,11 @@ class FileSystemHierarchy:
             self._checkDir("/var/spool")
             self._checkEntryMetadata("/var/spool", 0o755, "root", "root")
 
+        # /var/swap.dat
+        if self._exists("/var/swap.dat"):
+            self._checkFile("/var/swap.dat")
+            self._checkEntryMetadata("/var/swap.dat", 0o600, "root", "root")
+
         # /var/tmp
         self._checkDir("/var/tmp")
         self._checkEntryMetadata("/var/tmp", 0o755, "root", "root")
@@ -258,6 +270,20 @@ class FileSystemHierarchy:
                 raise FshCheckError("\"%s\" does not exist" % (fn))
 
         if os.path.islink(fullfn) or not os.path.isdir(fullfn):
+            # no way to autofix
+            raise FshCheckError("\"%s\" is invalid" % (fn))
+
+        self._record.add(fn)
+
+    def _checkFile(self, fn):
+        assert os.path.isabs(fn)
+        fullfn = os.path.join(self._dirPrefix, fn[1:])
+
+        if not os.path.exists(fullfn):
+            # no way to autofix
+            raise FshCheckError("\"%s\" does not exist" % (fn))
+
+        if os.path.islink(fullfn) or not os.path.isfile(fullfn):
             # no way to autofix
             raise FshCheckError("\"%s\" is invalid" % (fn))
 
