@@ -299,7 +299,7 @@ class FileSystemHierarchy:
             else:
                 raise FshCheckError("\"%s\" does not exist" % (fn))
 
-        if not os.path.islink(fullfn) and not os.readlink(fullfn) != target:
+        if not os.path.islink(fullfn) or not os.readlink(fullfn) != target:
             # FIXME: implement autofix
             raise FshCheckError("\"%s\" is invalid" % (fn))
 
