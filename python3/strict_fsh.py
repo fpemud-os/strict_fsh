@@ -49,8 +49,7 @@ class FileSystemHierarchy:
        1. Fedora UsrMerge (https://fedoraproject.org/wiki/Features/UsrMove)
        2. using /home/root as root's home directory, and symlink /root to it
        3. toolchain directory in /usr
-       4. no /usr/local
-       5. optional swap file /var/swap.dat
+       4. optional swap file /var/swap.dat
     """
 
     def __init__(self, dirPrefix="/"):
@@ -171,6 +170,57 @@ class FileSystemHierarchy:
         self._checkDir("/usr/libexec")
         self._checkEntryMetadata("/usr/libexec", 0o755, "root", "root")
 
+        # /usr/local
+        if self._exists("/usr/local"):
+            # /usr/local
+            self._checkDir("/usr/local")
+            self._checkEntryMetadata("/usr/local", 0o755, "root", "root")
+
+            # /usr/local/bin
+            if self._exists("/usr/local/bin"):
+                self._checkDir("/usr/local/bin")
+                self._checkEntryMetadata("/usr/local/bin", 0o755, "root", "root")
+
+            # /usr/local/etc
+            if self._exists("/usr/local/etc"):
+                self._checkDir("/usr/local/etc")
+                self._checkEntryMetadata("/usr/local/etc", 0o755, "root", "root")
+
+            # /usr/local/games
+            if self._exists("/usr/local/games"):
+                self._checkDir("/usr/local/games")
+                self._checkEntryMetadata("/usr/local/games", 0o755, "root", "root")
+
+            # /usr/local/include
+            if self._exists("/usr/local/include"):
+                self._checkDir("/usr/local/include")
+                self._checkEntryMetadata("/usr/local/include", 0o755, "root", "root")
+
+            # /usr/local/lib
+            if self._exists("/usr/local/lib"):
+                self._checkDir("/usr/local/lib")
+                self._checkEntryMetadata("/usr/local/lib", 0o755, "root", "root")
+
+            # /usr/local/man
+            if self._exists("/usr/local/man"):
+                self._checkDir("/usr/local/man")
+                self._checkEntryMetadata("/usr/local/man", 0o755, "root", "root")
+
+            # /usr/local/sbin
+            if self._exists("/usr/local/sbin"):
+                self._checkDir("/usr/local/sbin")
+                self._checkEntryMetadata("/usr/local/sbin", 0o755, "root", "root")
+
+            # /usr/local/share
+            if self._exists("/usr/local/share"):
+                self._checkDir("/usr/local/share")
+                self._checkEntryMetadata("/usr/local/share", 0o755, "root", "root")
+
+            # /usr/local/src
+            if self._exists("/usr/local/src"):
+                self._checkDir("/usr/local/src")
+                self._checkEntryMetadata("/usr/local/src", 0o755, "root", "root")
+
         # /usr/sbin
         self._checkDir("/usr/sbin")
         self._checkEntryMetadata("/usr/sbin", 0o755, "root", "root")
@@ -243,6 +293,8 @@ class FileSystemHierarchy:
         # redundant files
         self._checkNoRedundantEntry("/")
         self._checkNoRedundantEntry("/usr")
+        if self._exists("/usr/local"):
+            self._checkNoRedundantEntry("/usr/local")
         self._checkNoRedundantEntry("/var")
 
     def _exists(self, fn):
