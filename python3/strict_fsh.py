@@ -34,6 +34,7 @@ import os
 import pwd
 import grp
 import glob
+import filecmp
 
 __author__ = "fpemud@sina.com (Fpemud)"
 __version__ = "0.0.1"
@@ -351,9 +352,28 @@ class FileSystemHierarchy:
             else:
                 raise FshCheckError("\"%s\" does not exist" % (fn))
 
-        if not os.path.islink(fullfn) or not os.readlink(fullfn) != target:
-            # FIXME: implement autofix
-            raise FshCheckError("\"%s\" is invalid" % (fn))
+        if not os.path.islink(fullfn):
+            if os.path.isdir(fullfn):
+                fullTarget = os.path.join(self._dirPrefix, target)
+                if os.path.isdir(fullTarget):
+                    if self.bAutoFix:
+                        ret = filecmp.dircmp(fullfn, fullTarget)
+                        if len(ret.common) == 0 and len(ret.common_dirs) == 0:
+                            # FIXME
+                            raise FshCheckError("\"%s\" is invalid, can autofix" % (fn))
+                    else:
+                        raise FshCheckError("\"%s\" is invalid" % (fn))
+                else:
+                    raise FshCheckError("\"%s\" is invalid" % (fn))
+            else:
+                raise FshCheckError("\"%s\" is invalid" % (fn))
+        else:
+            if os.readlink(fullfn) != target:
+                if self.bAutoFix:
+                    os.unlink(fullfn)
+                    os.symlink(target, fullfn)
+                else:
+                    raise FshCheckError("\"%s\" is invalid" % (fn))
 
         self._record.add(fn)
 
