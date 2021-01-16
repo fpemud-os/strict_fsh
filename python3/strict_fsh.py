@@ -266,7 +266,7 @@ class FileSystemHierarchy:
 
         # /var/lock
         if self._exists("/var/lock"):
-            self._checkSymlink("/var/lock", "/run/lock")
+            self._checkSymlink("/var/lock", "../run/lock")
 
         # /var/log
         if self._exists("/var/log"):
@@ -275,7 +275,7 @@ class FileSystemHierarchy:
 
         # /var/run
         if self._exists("/var/run"):
-            self._checkSymlink("/var/run", "/run")
+            self._checkSymlink("/var/run", "../run")
 
         # /var/spool
         if self._exists("/var/spool"):
