@@ -93,8 +93,8 @@ class FileSystemHierarchy:
         self._dirPrefix = dirPrefix
         self._record = set()
 
-    def get_wildcards(self, user=None, files_flag=None):
-        if files_flag == self.WILDCARDS_SYSTEM:
+    def get_wildcards(self, user=None, wildcards_flag=None):
+        if wildcards_flag == self.WILDCARDS_SYSTEM:
             assert user is None
             return [
                 "/bin",             # symlink
@@ -125,7 +125,7 @@ class FileSystemHierarchy:
                 "/var/spool",
                 "/var/tmp",
             ]
-        elif files_flag == self.WILDCARDS_SYSTEM_DATA:
+        elif wildcards_flag == self.WILDCARDS_SYSTEM_DATA:
             assert user is None
             return [
                 "/var/cache/**",
@@ -134,12 +134,12 @@ class FileSystemHierarchy:
                 "/var/log/**",
                 "/var/swap.dat",
             ]
-        elif files_flag == self.WILDCARDS_SYSTEM_CACHE:
+        elif wildcards_flag == self.WILDCARDS_SYSTEM_CACHE:
             assert user is None
             return [
                 "/var/cache/**",
             ]
-        elif files_flag == self.WILDCARDS_USER_DATA:
+        elif wildcards_flag == self.WILDCARDS_USER_DATA:
             ret = []
             for fn in self._glob("/home/*"):
                 fuser = os.path.basename(fn)
@@ -149,7 +149,7 @@ class FileSystemHierarchy:
                     os.path.join(fn, "**"),
                 ]
             return ret
-        elif files_flag == self.WILDCARDS_USER_CACHE:
+        elif wildcards_flag == self.WILDCARDS_USER_CACHE:
             ret = []
             for fn in self._glob("/home/*"):
                 fuser = os.path.basename(fn)
@@ -159,7 +159,7 @@ class FileSystemHierarchy:
                     os.path.join(fn, ".cache", "**"),
                 ]
             return ret
-        elif files_flag == self.WILDCARDS_RUNTIME:
+        elif wildcards_flag == self.WILDCARDS_RUNTIME:
             assert user is None
             return [
                 "/dev/**",
@@ -621,6 +621,11 @@ class FshCheckError(Exception):
 
 @functools.lru_cache(maxsize=256, typed=True)
 def _compile_pattern(wildcards):
+    res = _translate_pattern(wildcards)
+    return re.compile(res).fullmatch
+
+
+def _translate_pattern(wildcards):
     assert all([len(x) > 0 and x[1] == '/' for x in wildcards])
     reslist = []
     for w in wildcards:
@@ -641,5 +646,4 @@ def _compile_pattern(wildcards):
                 res += re.escape(w[i])
                 i += 1
         reslist.append(res)
-    res = r'/(%s)' % ("|".join(reslist))
-    return re.compile(res).fullmatch
+    return r'/(%s)' % ("|".join(reslist))
