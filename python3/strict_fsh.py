@@ -37,7 +37,6 @@ import grp
 import glob
 import stat
 import filecmp
-import functools
 
 
 __author__ = "fpemud@sina.com (Fpemud)"
@@ -619,14 +618,13 @@ class FshCheckError(Exception):
     pass
 
 
-@functools.lru_cache(maxsize=256, typed=True)
 def _compile_pattern(wildcards):
     res = _translate_pattern(wildcards)
     return re.compile(res).fullmatch
 
 
 def _translate_pattern(wildcards):
-    assert all([len(x) > 0 and x[1] == '/' for x in wildcards])
+    assert all([len(w) > 0 and w[0] == '/' for w in wildcards])
     reslist = []
     for w in wildcards:
         w = w[1:]       # remove leading '/'
