@@ -58,6 +58,136 @@ class FileSystemHierarchy:
         self._dirPrefix = dirPrefix
         self._record = set()
 
+    def get_file_list(self):
+        ret = []
+
+        ret.append("/bin")
+
+        ret.append("/boot")
+
+        ret.append("/dev")
+
+        ret.append("/etc")
+
+        ret.append("/etc/passwd")
+        ret.append("/etc/group")
+        ret.append("/etc/shadow")
+        ret.append("/etc/gshadow")
+        ret.append("/etc/subuid")
+        ret.append("/etc/subgid")
+        if self._exists("/etc/passwd-"):
+            ret.append("/etc/passwd-")
+        if self._exists("/etc/group-"):
+            ret.append("/etc/group-")
+        if self._exists("/etc/shadow-"):
+            ret.append("/etc/shadow-")
+        if self._exists("/etc/gshadow-"):
+            ret.append("/etc/gshadow-")
+        if self._exists("/etc/subuid-"):
+            ret.append("/etc/subuid-")
+        if self._exists("/etc/subgid-"):
+            ret.append("/etc/subgid-")
+
+        ret.append("/home")
+        for fn in self._glob("/home/*"):
+            ret.append(fn)
+
+        ret.append("/lib")
+        ret.append("/lib64")
+
+        ret.append("/mnt")
+
+        if self._exists("/opt"):
+            ret.append("/opt")
+            if self._exists("/opt/bin"):
+                ret.append("/opt/bin")
+
+        ret.append("/proc")
+
+        ret.append("/root")
+
+        ret.append("/run")
+
+        ret.append("/sbin")
+
+        ret.append("/sys")
+
+        ret.append("/tmp")
+
+        ret.append("/usr")
+
+        ret.append("/usr/bin")
+
+        if self._exists("/usr/games"):
+            ret.append("/usr/games")
+            if self._exists("/usr/games/bin"):
+                ret.append("/usr/games/bin")
+
+        if self._exists("/usr/include"):
+            ret.append("/usr/include")
+
+        ret.append("/usr/lib")
+        ret.append("/usr/lib64")
+        ret.append("/usr/libexec")
+
+        if self._exists("/usr/local"):
+            ret.append("/usr/local")
+            if self._exists("/usr/local/bin"):
+                ret.append("/usr/local/bin")
+            if self._exists("/usr/local/etc"):
+                ret.append("/usr/local/etc")
+            if self._exists("/usr/local/games"):
+                ret.append("/usr/local/games")
+            if self._exists("/usr/local/include"):
+                ret.append("/usr/local/include")
+            if self._exists("/usr/local/lib"):
+                ret.append("/usr/local/lib")
+            if self._exists("/usr/local/lib64"):
+                ret.append("/usr/local/lib64")
+            if self._exists("/usr/local/man"):
+                ret.append("/usr/local/man")
+            if self._exists("/usr/local/sbin"):
+                ret.append("/usr/local/sbin")
+            if self._exists("/usr/local/share"):
+                ret.append("/usr/local/share")
+            if self._exists("/usr/local/src"):
+                ret.append("/usr/local/src")
+
+        ret.append("/usr/share")
+
+        if self._exists("/usr/src"):
+            ret.append("/usr/src")
+
+        for fn in self._glob("/usr/*"):
+            if self._isToolChainName(os.path.basename(fn)):
+                ret.append(fn)
+
+        ret.append("/var")
+        if self._exists("/var/cache"):
+            ret.append("/var/cache")
+        if self._exists("/var/db"):
+            ret.append("/var/db")
+        if self._exists("/var/empty"):
+            ret.append("/var/empty")
+        if self._exists("/var/games"):
+            ret.append("/var/games")
+        if self._exists("/var/lib"):
+            ret.append("/var/lib")
+        if self._exists("/var/lock"):
+            ret.append("/var/lock")
+        if self._exists("/var/log"):
+            ret.append("/var/log")
+        if self._exists("/var/run"):
+            ret.append("/var/run")
+        if self._exists("/var/spool"):
+            ret.append("/var/spool")
+        if self._exists("/var/swap.dat"):
+            ret.append("/var/swap.dat")
+        if True:
+            ret.append("/var/tmp")
+
+        return ret
+
     def check(self):
         self._check(False)
 
@@ -65,7 +195,8 @@ class FileSystemHierarchy:
         self._check(True)
 
     def _check(self, bAutoFix):
-        self.bAutoFix = bAutoFix
+        self._bAutoFix = bAutoFix
+        self._record = set()
 
         # /bin
         self._checkSymlink("/bin", "usr/bin")
@@ -81,6 +212,60 @@ class FileSystemHierarchy:
         # /etc
         self._checkDir("/etc")
         self._checkEntryMetadata("/etc", 0o0755, "root", "root")
+
+        # /etc/passwd
+        self._checkFile("/etc/passwd")
+        self._checkEntryMetadata("/etc/passwd", 0o0644, "root", "root")
+
+        # /etc/group
+        self._checkFile("/etc/group")
+        self._checkEntryMetadata("/etc/group", 0o0644, "root", "root")
+
+        # /etc/shadow
+        self._checkFile("/etc/shadow")
+        self._checkEntryMetadata("/etc/shadow", 0o0640, "root", "root")
+
+        # /etc/gshadow
+        self._checkFile("/etc/gshadow")
+        self._checkEntryMetadata("/etc/gshadow", 0o0640, "root", "root")
+
+        # /etc/subuid
+        self._checkFile("/etc/subuid")
+        self._checkEntryMetadata("/etc/subuid", 0o0644, "root", "root")
+
+        # /etc/subgid
+        self._checkFile("/etc/subgid")
+        self._checkEntryMetadata("/etc/subgid", 0o0644, "root", "root")
+
+        # /etc/passwd-
+        if self._exists("/etc/passwd-"):
+            self._checkFile("/etc/passwd-")
+            self._checkEntryMetadata("/etc/passwd-", 0o0644, "root", "root")
+
+        # /etc/group-
+        if self._exists("/etc/group-"):
+            self._checkFile("/etc/group-")
+            self._checkEntryMetadata("/etc/group-", 0o0644, "root", "root")
+
+        # /etc/shadow-
+        if self._exists("/etc/shadow-"):
+            self._checkFile("/etc/shadow-")
+            self._checkEntryMetadata("/etc/shadow-", 0o0640, "root", "root")
+
+        # /etc/gshadow-
+        if self._exists("/etc/gshadow-"):
+            self._checkFile("/etc/gshadow-")
+            self._checkEntryMetadata("/etc/gshadow-", 0o0640, "root", "root")
+
+        # /etc/subuid-
+        if self._exists("/etc/subuid-"):
+            self._checkFile("/etc/subuid-")
+            self._checkEntryMetadata("/etc/subuid-", 0o0644, "root", "root")
+
+        # /etc/subgid-
+        if self._exists("/etc/subgid-"):
+            self._checkFile("/etc/subgid-")
+            self._checkEntryMetadata("/etc/subgid-", 0o0644, "root", "root")
 
         # /home
         self._checkDir("/home")
@@ -157,8 +342,9 @@ class FileSystemHierarchy:
                 self._checkEntryMetadata("/usr/games/bin", 0o0755, "root", "root")
 
         # /usr/include
-        self._checkDir("/usr/include")
-        self._checkEntryMetadata("/usr/include", 0o0755, "root", "root")
+        if self._exists("/usr/include"):
+            self._checkDir("/usr/include")
+            self._checkEntryMetadata("/usr/include", 0o0755, "root", "root")
 
         # /usr/lib
         self._checkDir("/usr/lib")
@@ -340,7 +526,7 @@ class FileSystemHierarchy:
         fullfn = os.path.join(self._dirPrefix, fn[1:])
 
         if not os.path.exists(fullfn):
-            if self.bAutoFix:
+            if self._bAutoFix:
                 os.mkdir(fullfn)
             else:
                 raise FshCheckError("\"%s\" does not exist" % (fn))
@@ -370,7 +556,7 @@ class FileSystemHierarchy:
         fullfn = os.path.join(self._dirPrefix, fn[1:])
 
         if not os.path.exists(fullfn):
-            if self.bAutoFix:
+            if self._bAutoFix:
                 os.symlink(target, fullfn)
             else:
                 raise FshCheckError("\"%s\" does not exist" % (fn))
@@ -379,7 +565,7 @@ class FileSystemHierarchy:
             if os.path.isdir(fullfn):
                 fullTarget = os.path.join(self._dirPrefix, target)
                 if os.path.isdir(fullTarget):
-                    if self.bAutoFix:
+                    if self._bAutoFix:
                         ret = filecmp.dircmp(fullfn, fullTarget)
                         if len(ret.common) == 0 and len(ret.common_dirs) == 0:
                             # FIXME
@@ -392,7 +578,7 @@ class FileSystemHierarchy:
                 raise FshCheckError("\"%s\" is invalid" % (fn))
         else:
             if os.readlink(fullfn) != target:
-                if self.bAutoFix:
+                if self._bAutoFix:
                     os.unlink(fullfn)
                     os.symlink(target, fullfn)
                 else:
@@ -410,17 +596,17 @@ class FileSystemHierarchy:
 
         s = os.stat(fullfn)
         if stat.S_IMODE(s.st_mode) != mode:
-            if self.bAutoFix:
+            if self._bAutoFix:
                 os.chmod(fullfn, mode)
             else:
                 raise FshCheckError("\"%s\" has invalid permission" % (fn))
             if s.st_uid != ownerId:
-                if self.bAutoFix:
+                if self._bAutoFix:
                     os.chown(fullfn, ownerId, s.st_gid)
                 else:
                     raise FshCheckError("\"%s\" has invalid owner" % (fn))
             if s.st_gid != groupId:
-                if self.bAutoFix:
+                if self._bAutoFix:
                     os.chown(fullfn, s.st_uid, groupId)
                 else:
                     raise FshCheckError("\"%s\" has invalid owner group" % (fn))
