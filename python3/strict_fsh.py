@@ -31,7 +31,6 @@ strict_fsh
 """
 
 import os
-import re
 import pwd
 import grp
 import glob
@@ -46,28 +45,36 @@ __version__ = "0.0.1"
 def wildcards_match(name, wildcards):
     """
     Test whether NAME matches WILDCARDS.
-    The functions operate by translating the pattern into a regular expression.
 
-    Wildcard style:
-    o      a '*' matches any path component, but it stops at slashes.
-    o      use '**' to match anything, including slashes.
+    Wildcard specification:
+    o      '+ ' prefix means inclusion, '- ' prefix means exclusion, wildcards are order sensitive.
+    o      use '**' to match anything, including slashes, but only trailing "dir_name/**" is allowed.
     o      a trailing "dir_name/***" will match both the directory (as if "dir_name/" had been specified) and everything in the directory (as if "dir_name/**" had been specified).
     o      wildcard must begin with a '/'.
     o      wildcards are case sensitive.
     """
 
-    match = _compile_pattern(wildcards)
-    return match(name) is not None
+    _check_patterns(wildcards)
+
+    for w in wildcards:
+        if _match_pattern(name, w):
+            return _is_pattern_inc_or_exc(w)
+    return False
 
 
 def wildcards_filter(names, wildcards):
     """Return the subset of the list NAMES that match WILDCARDS."""
 
+    _check_patterns(wildcards)
+
     result = []
-    match = _compile_pattern(wildcards)
     for name in names:
-        if match(name):
-            result.append(name)
+        for w in wildcards:
+            if _match_pattern(name, w):
+                if _is_pattern_inc_or_exc(w):
+                    result.append(name)
+                else:
+                    break
     return result
 
 
@@ -81,9 +88,9 @@ class FileSystemHierarchy:
 
     WILDCARDS_SYSTEM = 1             # system files
     WILDCARDS_SYSTEM_DATA = 2        # system data files
-    WILDCARDS_SYSTEM_CACHE = 3       # system cache files, subset of system data files
-    WILDCARDS_USER_DATA = 4          # user data files
-    WILDCARDS_USER_CACHE = 5         # user cache files, subset of user data files
+    WILDCARDS_SYSTEM_CACHE = 3       # system cache files
+    WILDCARDS_USER_DATA = 4          # user data files (including root user)
+    WILDCARDS_USER_CACHE = 5         # user cache files
     WILDCARDS_RUNTIME = 6            # runtime files
 
     def __init__(self, dirPrefix="/"):
@@ -93,83 +100,101 @@ class FileSystemHierarchy:
     def get_wildcards(self, user=None, wildcards_flag=None):
         if wildcards_flag == self.WILDCARDS_SYSTEM:
             assert user is None
-            return [
-                "/bin",             # symlink
-                "/boot/***",
-                "/dev",
-                "/etc/***",
-                "/home",
-                "/home/*",
-                "/lib",             # symlink
-                "/lib64",           # symlink
-                "/mnt",
-                "/opt/***",
-                "/proc",
-                "/root",
-                "/run",
-                "/sbin",            # symlink
-                "/sys",
-                "/tmp",
-                "/usr/***",
-                "/var",
-                "/var/cache",
-                "/var/db",
-                "/var/empty",       # empty directory
-                "/var/lib",
-                "/var/lock",        # symlink
-                "/var/log",
-                "/var/run",         # symlink
-                "/var/spool",
-                "/var/tmp",
+            ret = [
+                "+ /",
+                "+ /bin",             # symlink
+                "+ /boot/***",
+                "+ /dev",
+                "+ /etc/***",
+                "+ /home",
+                "+ /home/*",
+                "+ /lib",             # symlink
+                "+ /lib64",           # symlink
+                "+ /mnt",
+                "+ /opt/***",
+                "+ /proc",
+                "+ /root",
+                "+ /run",
+                "+ /sbin",            # symlink
+                "+ /sys",
+                "+ /tmp",
+                "+ /usr/***",
+                "+ /var",
+                "+ /var/cache",
+                "+ /var/db",
+                "+ /var/empty",       # empty directory
+                "+ /var/lib",
+                "+ /var/lock",        # symlink
+                "+ /var/log",
+                "+ /var/run",         # symlink
+                "+ /var/spool",
+                "+ /var/tmp",
             ]
         elif wildcards_flag == self.WILDCARDS_SYSTEM_DATA:
             assert user is None
             return [
-                "/var/cache/**",
-                "/var/db/**",
-                "/var/lib/**",
-                "/var/log/**",
-                "/var/swap.dat",
+                "+ /var/db/**",
+                "+ /var/lib/**",
+                "+ /var/log/**",
+                "+ /var/swap.dat",
             ]
         elif wildcards_flag == self.WILDCARDS_SYSTEM_CACHE:
             assert user is None
             return [
-                "/var/cache/**",
+                "+ /var/cache/**",
             ]
         elif wildcards_flag == self.WILDCARDS_USER_DATA:
             ret = []
+            if user is None or user == "root":
+                ret += [
+                    "- /root/.cache/**",
+                    "+ /root/**"
+                ]
             for fn in self._glob("/home/*"):
                 fuser = os.path.basename(fn)
                 if user is not None and fuser != user:
                     continue
                 ret += [
-                    os.path.join(fn, "**"),
+                    "- /%s/.cache/**" % (fn),
+                    "+ /%s/**" % (fn)
                 ]
             return ret
         elif wildcards_flag == self.WILDCARDS_USER_CACHE:
             ret = []
+            if user is None or user == "root":
+                ret.apped("+ /root/.cache/**")
             for fn in self._glob("/home/*"):
                 fuser = os.path.basename(fn)
                 if user is not None and fuser != user:
                     continue
-                ret += [
-                    os.path.join(fn, ".cache", "**"),
-                ]
+                ret.append("+ %s/.cache/**" % (fn))
             return ret
         elif wildcards_flag == self.WILDCARDS_RUNTIME:
             assert user is None
             return [
-                "/dev/**",
-                "/mnt/**",
-                "/proc/**",
-                "/run/**",
-                "/sys/**",
-                "/tmp/**",
-                "/var/spool/**",
-                "/var/tmp/**",
+                "+ /dev/**",
+                "+ /mnt/**",
+                "+ /proc/**",
+                "+ /run/**",
+                "+ /sys/**",
+                "+ /tmp/**",
+                "+ /var/spool/**",
+                "+ /var/tmp/**",
             ]
         else:
             assert False
+
+    def wildcards_glob(self, wildcards):
+        _check_patterns(wildcards)
+
+        wildcards2 = []
+        for w in wildcards:
+            w2 = w[:2] + os.path.join(self._dirPrefix, w[3:])
+            wildcards2.append(w2)
+
+        result = []
+        self._wildcardsGlobImpl(self._dirPrefix, wildcards2, result)
+        return result
 
     def check(self):
         self._check(False)
@@ -428,11 +453,10 @@ class FileSystemHierarchy:
             self._checkDir("/var/db")
             self._checkEntryMetadata("/var/db", 0o0755, "root", "root")
 
-        # /var/empty
-        if self._exists("/var/empty"):
-            self._checkDir("/var/empty")
-            self._checkEntryMetadata("/var/empty", 0o0755, "root", "root")
-            self._checkDirIsEmpty("/var/empty")
+        # /var/empty (home directory for user "nobody")
+        self._checkDir("/var/empty")
+        self._checkEntryMetadata("/var/empty", 0o0755, "root", "root")
+        self._checkDirIsEmpty("/var/empty")
 
         # /var/games
         if self._exists("/var/games"):
@@ -445,8 +469,7 @@ class FileSystemHierarchy:
             self._checkEntryMetadata("/var/lib", 0o0755, "root", "root")
 
         # /var/lock
-        if self._exists("/var/lock"):
-            self._checkSymlink("/var/lock", "../run/lock")
+        self._checkSymlink("/var/lock", "../run/lock")
 
         # /var/log
         if self._exists("/var/log"):
@@ -454,8 +477,7 @@ class FileSystemHierarchy:
             self._checkEntryMetadata("/var/log", 0o0755, "root", "root")
 
         # /var/run
-        if self._exists("/var/run"):
-            self._checkSymlink("/var/run", "../run")
+        self._checkSymlink("/var/run", "../run")
 
         # /var/spool
         if self._exists("/var/spool"):
@@ -611,35 +633,76 @@ class FileSystemHierarchy:
             if fullfn2 not in self._record:
                 raise FshCheckError("\"%s\" should not exist" % (fullfn2[len(self._dirPrefix):]))
 
+    def _wildcardsGlobImpl(self, curPath, wildcards, result):
+        if os.path.isdir(curPath) and not os.path.islink(curPath):
+            bRecorded = False
+            bRecursive = False
+            for w in wildcards:
+                if _match_pattern(curPath, w):
+                    if _is_pattern_inc_or_exc(w):
+                        if not bRecorded:
+                            result.append(curPath)
+                            bRecorded = True
+                        if w.endswith("/***") or w.endswith("/**"):
+                            bRecursive = True
+                            break
+                    else:
+                        bRecorded = True
+                        if w.endswith("/***") or w.endswith("/**"):
+                            break
+                else:
+                    if _is_pattern_inc_or_exc(w) and w[2:].startswith(curPath + "/"):
+                        bRecursive = True
+                        if bRecorded:
+                            break
+            if bRecursive:
+                for fn in os.listdir(curPath):
+                    self._wildcardsGlobImpl(os.path.join(curPath, fn), wildcards, result)
+        else:
+            for w in wildcards:
+                if _match_pattern(curPath, w):
+                    if _is_pattern_inc_or_exc(w):
+                        result.append(curPath)
+                    return
+
 
 class FshCheckError(Exception):
     pass
 
 
-def _compile_pattern(wildcards):
-    res = _translate_pattern(wildcards)
-    return re.compile(res).fullmatch
+class FshWildcardError(Exception):
+    pass
 
 
-def _translate_pattern(wildcards):
-    assert all([len(w) > 0 and w[0] == '/' for w in wildcards])
-    reslist = []
+def _check_pattern(wildcard):
+    if not wildcard.startswith("+ ") and not wildcard.startswith("- "):
+        raise FshWildcardError("invalid wildcard \"%s\"" % (wildcard))
+    if len(wildcard) < 3 or wildcard[2] != '/':
+        raise FshWildcardError("invalid wildcard \"%s\"" % (wildcard))
+    if "*" in wildcard and not wildcard.endswith("/***") and not wildcard.endswith("/**"):
+        raise FshWildcardError("invalid wildcard \"%s\"" % (wildcard))
+
+
+def _check_patterns(wildcards):
     for w in wildcards:
-        w = w[1:]       # remove leading '/'
-        i, n = 0, len(w)
-        res = ''
-        while i < n:
-            if w[i:].startswith("/***"):
-                res = res + '(/.*)?'
-                break                       # ignore characters following '/***'
-            elif w[i:].startswith("**"):
-                res = res + '.*'
-                i += 2
-            elif w[i] == '*':
-                res = res + '[^/]*'
-                i += 1
-            else:
-                res += re.escape(w[i])
-                i += 1
-        reslist.append(res)
-    return r'/(%s)' % ("|".join(reslist))
+        _check_pattern(w)
+
+
+def _match_pattern(name, wildcard):
+    p = wildcard[2:]
+    if p.endswith("/***"):
+        p = os.path.dirname(p)
+        if name == p or name.startswith(p + "/"):
+            return True
+    elif p.endswith("/**"):
+        p = os.path.dirname(p)
+        if name.startswith(p + "/"):
+            return True
+    else:
+        if name == p:
+            return True
+    return False
+
+
+def _is_pattern_inc_or_exc(wildcard):
+    return wildcard.startswith("+ ")
