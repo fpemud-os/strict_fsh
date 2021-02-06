@@ -116,7 +116,7 @@ class FileSystemHierarchy:
 
         # /proc
         self._checkDir("/proc")
-        self._checkEntryMetadata("/proc", 0o755, "root", "root")
+        self._checkEntryMetadata("/proc", 0o555, "root", "root")
 
         # /root
         self._checkSymlink("/root", "home/root")
@@ -130,7 +130,7 @@ class FileSystemHierarchy:
 
         # /sys
         self._checkDir("/sys")
-        self._checkEntryMetadata("/sys", 0o755, "root", "root")
+        self._checkEntryMetadata("/sys", 0o555, "root", "root")
 
         # /tmp
         self._checkDir("/tmp")
