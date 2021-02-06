@@ -31,18 +31,46 @@ strict_fsh
 """
 
 import os
+import re
 import pwd
 import grp
 import glob
 import stat
 import filecmp
+import functools
+
 
 __author__ = "fpemud@sina.com (Fpemud)"
 __version__ = "0.0.1"
 
 
-class FshCheckError(Exception):
-    pass
+def wildcards_match(name, wildcards):
+    """
+    Test whether NAME matches WILDCARDS.
+    The functions operate by translating the pattern into a regular expression.
+    They cache the compiled regular expressions for speed.
+
+    Wildcard style:
+    o      a '*' matches any path component, but it stops at slashes.
+    o      use '**' to match anything, including slashes.
+    o      a trailing "dir_name/***" will match both the directory (as if "dir_name/" had been specified) and everything in the directory (as if "dir_name/**" had been specified).
+    o      wildcard must begin with a '/'.
+    o      wildcards are case sensitive.
+    """
+
+    match = _compile_pattern(wildcards)
+    return match(name) is not None
+
+
+def wildcards_filter(names, wildcards):
+    """Return the subset of the list NAMES that match WILDCARDS."""
+
+    result = []
+    match = _compile_pattern(wildcards)
+    for name in names:
+        if match(name):
+            result.append(name)
+    return result
 
 
 class FileSystemHierarchy:
@@ -53,139 +81,97 @@ class FileSystemHierarchy:
          3. optional swap file /var/swap.dat
     """
 
+    WILDCARDS_SYSTEM = 1             # system files
+    WILDCARDS_SYSTEM_DATA = 2        # system data files
+    WILDCARDS_SYSTEM_CACHE = 3       # system cache files, subset of system data files
+    WILDCARDS_USER_DATA = 4          # user data files
+    WILDCARDS_USER_CACHE = 5         # user cache files, subset of user data files
+    WILDCARDS_RUNTIME = 6            # runtime files
+
     def __init__(self, dirPrefix="/"):
         self._dirPrefix = dirPrefix
         self._record = set()
 
-    def get_file_list(self):
-        ret = []
-
-        ret.append("/bin")
-
-        ret.append("/boot")
-
-        ret.append("/dev")
-
-        ret.append("/etc")
-
-        ret.append("/etc/passwd")
-        ret.append("/etc/group")
-        ret.append("/etc/shadow")
-        ret.append("/etc/gshadow")
-        ret.append("/etc/subuid")
-        ret.append("/etc/subgid")
-        if self._exists("/etc/passwd-"):
-            ret.append("/etc/passwd-")
-        if self._exists("/etc/group-"):
-            ret.append("/etc/group-")
-        if self._exists("/etc/shadow-"):
-            ret.append("/etc/shadow-")
-        if self._exists("/etc/gshadow-"):
-            ret.append("/etc/gshadow-")
-        if self._exists("/etc/subuid-"):
-            ret.append("/etc/subuid-")
-        if self._exists("/etc/subgid-"):
-            ret.append("/etc/subgid-")
-
-        ret.append("/home")
-        for fn in self._glob("/home/*"):
-            ret.append(fn)
-
-        ret.append("/lib")
-        ret.append("/lib64")
-
-        ret.append("/mnt")
-
-        if self._exists("/opt"):
-            ret.append("/opt")
-            if self._exists("/opt/bin"):
-                ret.append("/opt/bin")
-
-        ret.append("/proc")
-
-        ret.append("/root")
-
-        ret.append("/run")
-
-        ret.append("/sbin")
-
-        ret.append("/sys")
-
-        ret.append("/tmp")
-
-        ret.append("/usr")
-
-        ret.append("/usr/bin")
-
-        if self._exists("/usr/games"):
-            ret.append("/usr/games")
-            if self._exists("/usr/games/bin"):
-                ret.append("/usr/games/bin")
-
-        if self._exists("/usr/include"):
-            ret.append("/usr/include")
-
-        ret.append("/usr/lib")
-        ret.append("/usr/lib64")
-        ret.append("/usr/libexec")
-
-        if self._exists("/usr/local"):
-            ret.append("/usr/local")
-            if self._exists("/usr/local/bin"):
-                ret.append("/usr/local/bin")
-            if self._exists("/usr/local/etc"):
-                ret.append("/usr/local/etc")
-            if self._exists("/usr/local/games"):
-                ret.append("/usr/local/games")
-            if self._exists("/usr/local/include"):
-                ret.append("/usr/local/include")
-            if self._exists("/usr/local/lib"):
-                ret.append("/usr/local/lib")
-            if self._exists("/usr/local/lib64"):
-                ret.append("/usr/local/lib64")
-            if self._exists("/usr/local/man"):
-                ret.append("/usr/local/man")
-            if self._exists("/usr/local/sbin"):
-                ret.append("/usr/local/sbin")
-            if self._exists("/usr/local/share"):
-                ret.append("/usr/local/share")
-            if self._exists("/usr/local/src"):
-                ret.append("/usr/local/src")
-
-        ret.append("/usr/share")
-
-        if self._exists("/usr/src"):
-            ret.append("/usr/src")
-
-        for fn in self._glob("/usr/*"):
-            if self._isToolChainName(os.path.basename(fn)):
-                ret.append(fn)
-
-        ret.append("/var")
-        if self._exists("/var/cache"):
-            ret.append("/var/cache")
-        if self._exists("/var/db"):
-            ret.append("/var/db")
-        if self._exists("/var/empty"):
-            ret.append("/var/empty")
-        if self._exists("/var/games"):
-            ret.append("/var/games")
-        if self._exists("/var/lib"):
-            ret.append("/var/lib")
-        if self._exists("/var/lock"):
-            ret.append("/var/lock")
-        if self._exists("/var/log"):
-            ret.append("/var/log")
-        if self._exists("/var/run"):
-            ret.append("/var/run")
-        if self._exists("/var/spool"):
-            ret.append("/var/spool")
-        if self._exists("/var/swap.dat"):
-            ret.append("/var/swap.dat")
-        if True:
-            ret.append("/var/tmp")
-
-        return ret
+    def get_wildcards(self, user=None, files_flag=None):
+        if files_flag == self.WILDCARDS_SYSTEM:
+            assert user is None
+            return [
+                "/bin",             # symlink
+                "/boot/***",
+                "/dev",
+                "/etc/***",
+                "/home",
+                "/home/*",
+                "/lib",             # symlink
+                "/lib64",           # symlink
+                "/mnt",
+                "/opt/***",
+                "/proc",
+                "/root",
+                "/run",
+                "/sbin",            # symlink
+                "/sys",
+                "/tmp",
+                "/usr/***",
+                "/var",
+                "/var/cache",
+                "/var/db",
+                "/var/empty",       # empty directory
+                "/var/lib",
+                "/var/lock",        # symlink
+                "/var/log",
+                "/var/run",         # symlink
+                "/var/spool",
+                "/var/tmp",
+            ]
+        elif files_flag == self.WILDCARDS_SYSTEM_DATA:
+            assert user is None
+            return [
+                "/var/cache/**",
+                "/var/db/**",
+                "/var/lib/**",
+                "/var/log/**",
+                "/var/swap.dat",
+            ]
+        elif files_flag == self.WILDCARDS_SYSTEM_CACHE:
+            assert user is None
+            return [
+                "/var/cache/**",
+            ]
+        elif files_flag == self.WILDCARDS_USER_DATA:
+            ret = []
+            for fn in self._glob("/home/*"):
+                fuser = os.path.basename(fn)
+                if user is not None and fuser != user:
+                    continue
+                ret += [
+                    os.path.join(fn, "**"),
+                ]
+            return ret
+        elif files_flag == self.WILDCARDS_USER_CACHE:
+            ret = []
+            for fn in self._glob("/home/*"):
+                fuser = os.path.basename(fn)
+                if user is not None and fuser != user:
+                    continue
+                ret += [
+                    os.path.join(fn, ".cache", "**"),
+                ]
+            return ret
+        elif files_flag == self.WILDCARDS_RUNTIME:
+            assert user is None
+            return [
+                "/dev/**",
+                "/mnt/**",
+                "/proc/**",
+                "/run/**",
+                "/sys/**",
+                "/tmp/**",
+                "/var/spool/**",
+                "/var/tmp/**",
+            ]
+        else:
+            assert False
 
     def check(self):
         self._check(False)
@@ -448,6 +434,7 @@ class FileSystemHierarchy:
         if self._exists("/var/empty"):
             self._checkDir("/var/empty")
             self._checkEntryMetadata("/var/empty", 0o0755, "root", "root")
+            self._checkDirIsEmpty("/var/empty")
 
         # /var/games
         if self._exists("/var/games"):
@@ -583,6 +570,13 @@ class FileSystemHierarchy:
 
         self._record.add(fn)
 
+    def _checkDirIsEmpty(self, fn):
+        assert os.path.isabs(fn)
+        fullfn = os.path.join(self._dirPrefix, fn[1:])
+        if len(os.listdir(fullfn)) > 0:
+            # dangerous to autofix
+            raise FshCheckError("\"%s\" is not empty" % (fn))
+
     def _checkEntryMetadata(self, fn, mode, owner, group):
         assert os.path.isabs(fn)
         assert stat.S_IFMT(mode) == 0                      # no file type bits
@@ -618,3 +612,33 @@ class FileSystemHierarchy:
             fullfn2 = os.path.join(fullfn, fn2)
             if fullfn2 not in self._record:
                 raise FshCheckError("\"%s\" should not exist" % (fullfn2[len(self._dirPrefix):]))
+
+
+class FshCheckError(Exception):
+    pass
+
+
+@functools.lru_cache(maxsize=256, typed=True)
+def _compile_pattern(wildcards):
+    assert all([len(x) > 0 and x[1] == '/' for x in wildcards])
+    reslist = []
+    for w in wildcards:
+        w = w[1:]       # remove leading '/'
+        i, n = 0, len(w)
+        res = ''
+        while i < n:
+            if w[i:].startswith("/***"):
+                res = res + '(/.*)?'
+                break                       # ignore characters following '/***'
+            elif w[i:].startswith("**"):
+                res = res + '.*'
+                i += 2
+            elif w[i] == '*':
+                res = res + '[^/]*'
+                i += 1
+            else:
+                res += re.escape(w[i])
+                i += 1
+        reslist.append(res)
+    res = r'/(%s)' % ("|".join(reslist))
+    return re.compile(res).fullmatch
