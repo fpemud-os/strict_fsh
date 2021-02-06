@@ -84,6 +84,7 @@ class FileSystemHierarchy:
          1. Fedora UsrMerge (https://fedoraproject.org/wiki/Features/UsrMove)
          2. optional toolchain directories in /usr
          3. optional swap file /var/swap.dat
+         4. no /var/games, why games have global data
     """
 
     WILDCARDS_SYSTEM = 1             # system files
@@ -487,11 +488,6 @@ class FileSystemHierarchy:
         self._checkDir("/var/empty")
         self._checkEntryMetadata("/var/empty", 0o0755, "root", "root")
         self._checkDirIsEmpty("/var/empty")
-
-        # /var/games
-        if self._exists("/var/games"):
-            self._checkDir("/var/games")
-            self._checkEntryMetadata("/var/games", 0o0755, "root", "root")
 
         # /var/lib
         if self._exists("/var/lib"):
