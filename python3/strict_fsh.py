@@ -192,9 +192,10 @@ class FileSystemHierarchy:
             w2 = w[:2] + os.path.join(self._dirPrefix, w[3:])
             wildcards2.append(w2)
 
-        result = []
-        self._wildcardsGlobImpl(self._dirPrefix, wildcards2, result)
-        return result
+        ret = []
+        self._wildcardsGlobImpl(self._dirPrefix, wildcards2, ret)
+        ret = ["/" + x[len(self._dirPrefix):] for x in ret]
+        return ret
 
     def check(self):
         self._check(False)
