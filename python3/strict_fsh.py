@@ -71,19 +71,19 @@ class FileSystemHierarchy:
 
         # /boot
         self._checkDir("/boot")
-        self._checkEntryMetadata("/boot", 0o755, "root", "root")
+        self._checkEntryMetadata("/boot", 0o0755, "root", "root")
 
         # /dev
         self._checkDir("/dev")
-        self._checkEntryMetadata("/dev", 0o755, "root", "root")
+        self._checkEntryMetadata("/dev", 0o0755, "root", "root")
 
         # /etc
         self._checkDir("/etc")
-        self._checkEntryMetadata("/etc", 0o755, "root", "root")
+        self._checkEntryMetadata("/etc", 0o0755, "root", "root")
 
         # /home
         self._checkDir("/home")
-        self._checkEntryMetadata("/home", 0o755, "root", "root")
+        self._checkEntryMetadata("/home", 0o0755, "root", "root")
 
         # /home/X
         for fn in self._glob("/home/*"):
@@ -101,168 +101,168 @@ class FileSystemHierarchy:
 
         # /mnt
         self._checkDir("/mnt")
-        self._checkEntryMetadata("/mnt", 0o755, "root", "root")
+        self._checkEntryMetadata("/mnt", 0o0755, "root", "root")
 
         # /opt
         if self._exists("/opt"):
             # /opt
             self._checkDir("/opt")
-            self._checkEntryMetadata("/opt", 0o755, "root", "root")
+            self._checkEntryMetadata("/opt", 0o0755, "root", "root")
 
             # /opt/bin
             if self._exists("/opt/bin"):
                 self._checkDir("/opt/bin")
-                self._checkEntryMetadata("/opt/bin", 0o755, "root", "root")
+                self._checkEntryMetadata("/opt/bin", 0o0755, "root", "root")
 
         # /proc
         self._checkDir("/proc")
-        self._checkEntryMetadata("/proc", 0o555, "root", "root")
+        self._checkEntryMetadata("/proc", 0o0555, "root", "root")
 
         # /root
         self._checkSymlink("/root", "home/root")
 
         # /run
         self._checkDir("/run")
-        self._checkEntryMetadata("/run", 0o755, "root", "root")
+        self._checkEntryMetadata("/run", 0o0755, "root", "root")
 
         # /sbin
         self._checkSymlink("/sbin", "usr/sbin")
 
         # /sys
         self._checkDir("/sys")
-        self._checkEntryMetadata("/sys", 0o555, "root", "root")
+        self._checkEntryMetadata("/sys", 0o0555, "root", "root")
 
         # /tmp
         self._checkDir("/tmp")
-        self._checkEntryMetadata("/tmp", 0o755, "root", "root")        # FIXME
+        self._checkEntryMetadata("/tmp", 0o1777, "root", "root")
 
         # /usr
         self._checkDir("/usr")
-        self._checkEntryMetadata("/usr", 0o755, "root", "root")
+        self._checkEntryMetadata("/usr", 0o0755, "root", "root")
 
         # /usr/bin
         self._checkDir("/usr/bin")
-        self._checkEntryMetadata("/usr/bin", 0o755, "root", "root")
+        self._checkEntryMetadata("/usr/bin", 0o0755, "root", "root")
 
         # /usr/games
         if self._exists("/usr/games"):
             # /usr/games
             self._checkDir("/usr/games")
-            self._checkEntryMetadata("/usr/games", 0o755, "root", "root")
+            self._checkEntryMetadata("/usr/games", 0o0755, "root", "root")
 
             # /usr/games/bin
             if self._exists("/usr/games/bin"):
                 self._checkDir("/usr/games/bin")
-                self._checkEntryMetadata("/usr/games/bin", 0o755, "root", "root")
+                self._checkEntryMetadata("/usr/games/bin", 0o0755, "root", "root")
 
         # /usr/include
         self._checkDir("/usr/include")
-        self._checkEntryMetadata("/usr/include", 0o755, "root", "root")
+        self._checkEntryMetadata("/usr/include", 0o0755, "root", "root")
 
         # /usr/lib
         self._checkDir("/usr/lib")
-        self._checkEntryMetadata("/usr/lib", 0o755, "root", "root")
+        self._checkEntryMetadata("/usr/lib", 0o0755, "root", "root")
 
         # /usr/lib64
         self._checkDir("/usr/lib64")
-        self._checkEntryMetadata("/usr/lib64", 0o755, "root", "root")
+        self._checkEntryMetadata("/usr/lib64", 0o0755, "root", "root")
 
         # /usr/libexec
         self._checkDir("/usr/libexec")
-        self._checkEntryMetadata("/usr/libexec", 0o755, "root", "root")
+        self._checkEntryMetadata("/usr/libexec", 0o0755, "root", "root")
 
         # /usr/local
         if self._exists("/usr/local"):
             # /usr/local
             self._checkDir("/usr/local")
-            self._checkEntryMetadata("/usr/local", 0o755, "root", "root")
+            self._checkEntryMetadata("/usr/local", 0o0755, "root", "root")
 
             # /usr/local/bin
             if self._exists("/usr/local/bin"):
                 self._checkDir("/usr/local/bin")
-                self._checkEntryMetadata("/usr/local/bin", 0o755, "root", "root")
+                self._checkEntryMetadata("/usr/local/bin", 0o0755, "root", "root")
 
             # /usr/local/etc
             if self._exists("/usr/local/etc"):
                 self._checkDir("/usr/local/etc")
-                self._checkEntryMetadata("/usr/local/etc", 0o755, "root", "root")
+                self._checkEntryMetadata("/usr/local/etc", 0o0755, "root", "root")
 
             # /usr/local/games
             if self._exists("/usr/local/games"):
                 self._checkDir("/usr/local/games")
-                self._checkEntryMetadata("/usr/local/games", 0o755, "root", "root")
+                self._checkEntryMetadata("/usr/local/games", 0o0755, "root", "root")
 
             # /usr/local/include
             if self._exists("/usr/local/include"):
                 self._checkDir("/usr/local/include")
-                self._checkEntryMetadata("/usr/local/include", 0o755, "root", "root")
+                self._checkEntryMetadata("/usr/local/include", 0o0755, "root", "root")
 
             # /usr/local/lib
             if self._exists("/usr/local/lib"):
                 self._checkDir("/usr/local/lib")
-                self._checkEntryMetadata("/usr/local/lib", 0o755, "root", "root")
+                self._checkEntryMetadata("/usr/local/lib", 0o0755, "root", "root")
 
             # /usr/local/man
             if self._exists("/usr/local/man"):
                 self._checkDir("/usr/local/man")
-                self._checkEntryMetadata("/usr/local/man", 0o755, "root", "root")
+                self._checkEntryMetadata("/usr/local/man", 0o0755, "root", "root")
 
             # /usr/local/sbin
             if self._exists("/usr/local/sbin"):
                 self._checkDir("/usr/local/sbin")
-                self._checkEntryMetadata("/usr/local/sbin", 0o755, "root", "root")
+                self._checkEntryMetadata("/usr/local/sbin", 0o0755, "root", "root")
 
             # /usr/local/share
             if self._exists("/usr/local/share"):
                 self._checkDir("/usr/local/share")
-                self._checkEntryMetadata("/usr/local/share", 0o755, "root", "root")
+                self._checkEntryMetadata("/usr/local/share", 0o0755, "root", "root")
 
             # /usr/local/src
             if self._exists("/usr/local/src"):
                 self._checkDir("/usr/local/src")
-                self._checkEntryMetadata("/usr/local/src", 0o755, "root", "root")
+                self._checkEntryMetadata("/usr/local/src", 0o0755, "root", "root")
 
         # /usr/sbin
         self._checkDir("/usr/sbin")
-        self._checkEntryMetadata("/usr/sbin", 0o755, "root", "root")
+        self._checkEntryMetadata("/usr/sbin", 0o0755, "root", "root")
 
         # /usr/share
         self._checkDir("/usr/share")
-        self._checkEntryMetadata("/usr/share", 0o755, "root", "root")
+        self._checkEntryMetadata("/usr/share", 0o0755, "root", "root")
 
         # /usr/src
         if self._exists("/usr/src"):
             self._checkDir("/usr/src")
-            self._checkEntryMetadata("/usr/src", 0o755, "root", "root")
+            self._checkEntryMetadata("/usr/src", 0o0755, "root", "root")
 
         # toolchain directory
         for fn in self._glob("/usr/*-*-*-*"):
             self._checkDir(fn)
-            self._checkEntryMetadata(fn, 0o755, "root", "root")
+            self._checkEntryMetadata(fn, 0o0755, "root", "root")
 
         # /var
         self._checkDir("/var")
-        self._checkEntryMetadata("/var", 0o755, "root", "root")
+        self._checkEntryMetadata("/var", 0o0755, "root", "root")
 
         # /var/cache
         if self._exists("/var/cache"):
             self._checkDir("/var/cache")
-            self._checkEntryMetadata("/var/cache", 0o755, "root", "root")
+            self._checkEntryMetadata("/var/cache", 0o0755, "root", "root")
 
         # /var/db
         if self._exists("/var/db"):
             self._checkDir("/var/db")
-            self._checkEntryMetadata("/var/db", 0o755, "root", "root")
+            self._checkEntryMetadata("/var/db", 0o0755, "root", "root")
 
         # /var/games
         if self._exists("/var/games"):
             self._checkDir("/var/games")
-            self._checkEntryMetadata("/var/games", 0o755, "root", "root")
+            self._checkEntryMetadata("/var/games", 0o0755, "root", "root")
 
         # /var/lib
         if self._exists("/var/lib"):
             self._checkDir("/var/lib")
-            self._checkEntryMetadata("/var/lib", 0o755, "root", "root")
+            self._checkEntryMetadata("/var/lib", 0o0755, "root", "root")
 
         # /var/lock
         if self._exists("/var/lock"):
@@ -271,7 +271,7 @@ class FileSystemHierarchy:
         # /var/log
         if self._exists("/var/log"):
             self._checkDir("/var/log")
-            self._checkEntryMetadata("/var/log", 0o755, "root", "root")
+            self._checkEntryMetadata("/var/log", 0o0755, "root", "root")
 
         # /var/run
         if self._exists("/var/run"):
@@ -280,7 +280,7 @@ class FileSystemHierarchy:
         # /var/spool
         if self._exists("/var/spool"):
             self._checkDir("/var/spool")
-            self._checkEntryMetadata("/var/spool", 0o755, "root", "root")
+            self._checkEntryMetadata("/var/spool", 0o0755, "root", "root")
 
         # /var/swap.dat
         if self._exists("/var/swap.dat"):
@@ -289,7 +289,7 @@ class FileSystemHierarchy:
 
         # /var/tmp
         self._checkDir("/var/tmp")
-        self._checkEntryMetadata("/var/tmp", 0o755, "root", "root")
+        self._checkEntryMetadata("/var/tmp", 0o0755, "root", "root")
 
         # redundant files
         self._checkNoRedundantEntry("/")
