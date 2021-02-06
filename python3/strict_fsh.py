@@ -34,6 +34,7 @@ import os
 import pwd
 import grp
 import glob
+import stat
 import filecmp
 
 __author__ = "fpemud@sina.com (Fpemud)"
@@ -46,11 +47,11 @@ class FshCheckError(Exception):
 
 class FileSystemHierarchy:
 
-    """We comply with FHS (https://refspecs.linuxfoundation.org/fhs.shtml) but have some our own rules:
-       1. Fedora UsrMerge (https://fedoraproject.org/wiki/Features/UsrMove)
-       2. using /home/root as root's home directory, and symlink /root to it
-       3. toolchain directory in /usr
-       4. optional swap file /var/swap.dat
+    """We comply with FHS (https://refspecs.linuxfoundation.org/fhs.shtml) but have some extra rules:
+         1. Fedora UsrMerge (https://fedoraproject.org/wiki/Features/UsrMove)
+         2. using /home/root as root's home directory, and symlink /root to it
+         3. optional toolchain directories in /usr
+         4. optional swap file /var/swap.dat
     """
 
     def __init__(self, dirPrefix="/"):
@@ -202,6 +203,11 @@ class FileSystemHierarchy:
                 self._checkDir("/usr/local/lib")
                 self._checkEntryMetadata("/usr/local/lib", 0o0755, "root", "root")
 
+            # /usr/local/lib64
+            if self._exists("/usr/local/lib64"):
+                self._checkDir("/usr/local/lib64")
+                self._checkEntryMetadata("/usr/local/lib64", 0o0755, "root", "root")
+
             # /usr/local/man
             if self._exists("/usr/local/man"):
                 self._checkDir("/usr/local/man")
@@ -236,9 +242,10 @@ class FileSystemHierarchy:
             self._checkEntryMetadata("/usr/src", 0o0755, "root", "root")
 
         # toolchain directory
-        for fn in self._glob("/usr/*-*-*-*"):
-            self._checkDir(fn)
-            self._checkEntryMetadata(fn, 0o0755, "root", "root")
+        for fn in self._glob("/usr/*"):
+            if self._isToolChainName(os.path.basename(fn)):
+                self._checkDir(fn)
+                self._checkEntryMetadata(fn, 0o0755, "root", "root")
 
         # /var
         self._checkDir("/var")
@@ -285,11 +292,11 @@ class FileSystemHierarchy:
         # /var/swap.dat
         if self._exists("/var/swap.dat"):
             self._checkFile("/var/swap.dat")
-            self._checkEntryMetadata("/var/swap.dat", 0o600, "root", "root")
+            self._checkEntryMetadata("/var/swap.dat", 0o0600, "root", "root")
 
         # /var/tmp
         self._checkDir("/var/tmp")
-        self._checkEntryMetadata("/var/tmp", 0o0755, "root", "root")
+        self._checkEntryMetadata("/var/tmp", 0o1777, "root", "root")
 
         # redundant files
         self._checkNoRedundantEntry("/")
@@ -311,6 +318,17 @@ class FileSystemHierarchy:
         ret = glob.glob(fullfn)
         ret = ["/" + x[len(self._dirPrefix):] for x in ret]
         return ret
+
+    def _isToolChainName(self, name):
+        # FIXME: how to find a complete list?
+        if name == "i686-pc-linux-gnu":
+            return True
+        elif name == "x86_64-pc-linux-gnu":
+            return True
+        elif name == "x86_64-w64-mingw32":
+            return True
+        else:
+            return False
 
     def _checkDir(self, fn):
         assert os.path.isabs(fn)
@@ -379,18 +397,14 @@ class FileSystemHierarchy:
 
     def _checkEntryMetadata(self, fn, mode, owner, group):
         assert os.path.isabs(fn)
-        fullfn = os.path.join(self._dirPrefix, fn[1:])
+        assert stat.S_IFMT(mode) == 0                      # no file type bits
 
+        fullfn = os.path.join(self._dirPrefix, fn[1:])
         ownerId = pwd.getpwnam(owner).pw_uid
         groupId = grp.getgrnam(group).gr_gid
 
-        if os.path.isdir(fn):
-            realMode = mode | 0o40000
-        else:
-            realMode = mode
-        
         s = os.stat(fullfn)
-        if s.st_mode != realMode:
+        if stat.S_IMODE(s.st_mode) != mode:
             if self.bAutoFix:
                 os.chmod(fullfn, mode)
             else:
