@@ -107,11 +107,17 @@ class FileSystemHierarchy:
                 "+ /dev",
                 "+ /etc/***",
                 "+ /home",
-                "+ /home/*",
+            ]
+            for fn in self._glob("/home/*"):
+                ret.apend("+ %s" % (fn))
+            ret += [
                 "+ /lib",             # symlink
                 "+ /lib64",           # symlink
                 "+ /mnt",
-                "+ /opt/***",
+            ]
+            if self._exists("/opt"):
+                ret.append("+ /opt/***")
+            ret += [
                 "+ /proc",
                 "+ /root",
                 "+ /run",
@@ -120,29 +126,48 @@ class FileSystemHierarchy:
                 "+ /tmp",
                 "+ /usr/***",
                 "+ /var",
-                "+ /var/cache",
-                "+ /var/db",
+            ]
+            if self._exists("/var/cache"):
+                ret.append("+ /var/cache")
+            if self._exists("/var/db"):
+                ret.append("+ /var/db")
+            ret += [
                 "+ /var/empty",       # empty directory
-                "+ /var/lib",
+            ]
+            if self._exists("/var/lib"):
+                ret.append("+ /var/lib")
+            ret += [
                 "+ /var/lock",        # symlink
-                "+ /var/log",
+            ]
+            if self._exists("/var/log"):
+                ret.append("+ /var/log")
+            ret += [
                 "+ /var/run",         # symlink
-                "+ /var/spool",
+            ]
+            if self._exists("/var/spool"):
+                ret.append("+ /var/spool")
+            ret += [
                 "+ /var/tmp",
             ]
+            return ret
         elif wildcards_flag == self.WILDCARDS_SYSTEM_DATA:
             assert user is None
-            return [
-                "+ /var/db/**",
-                "+ /var/lib/**",
-                "+ /var/log/**",
-                "+ /var/swap.dat",
-            ]
+            ret = []
+            if self._exists("/var/db"):
+                ret.append("+ /var/db/**")
+            if self._exists("/var/lib"):
+                ret.append("+ /var/lib/**")
+            if self._exists("/var/log"):
+                ret.append("+ /var/log/**")
+            if self._exists("/var/swap.dat"):
+                ret.append("+ /var/swap.dat")
+            return ret
         elif wildcards_flag == self.WILDCARDS_SYSTEM_CACHE:
             assert user is None
-            return [
-                "+ /var/cache/**",
-            ]
+            ret = []
+            if self._exists("/var/cache"):
+                ret.append("+ /var/cache/**")
+            return ret
         elif wildcards_flag == self.WILDCARDS_USER_DATA:
             ret = []
             if user is None or user == "root":
@@ -152,35 +177,39 @@ class FileSystemHierarchy:
                 ]
             for fn in self._glob("/home/*"):
                 fuser = os.path.basename(fn)
-                if user is not None and fuser != user:
-                    continue
-                ret += [
-                    "- /%s/.cache/**" % (fn),
-                    "+ /%s/**" % (fn)
-                ]
+                if user is None or fuser != user:
+                    ret += [
+                        "- /%s/.cache/**" % (fn),
+                        "+ /%s/**" % (fn)
+                    ]
             return ret
         elif wildcards_flag == self.WILDCARDS_USER_CACHE:
             ret = []
             if user is None or user == "root":
-                ret.apped("+ /root/.cache/**")
+                if self._exists("/root/.cache"):
+                    ret.apped("+ /root/.cache/**")
             for fn in self._glob("/home/*"):
                 fuser = os.path.basename(fn)
-                if user is not None and fuser != user:
-                    continue
-                ret.append("+ %s/.cache/**" % (fn))
+                if user is None or fuser == user:
+                    if self._exists("%s/.cache" % (fn)):
+                        ret.append("+ %s/.cache/**" % (fn))
             return ret
         elif wildcards_flag == self.WILDCARDS_RUNTIME:
             assert user is None
-            return [
+            ret = [
                 "+ /dev/**",
                 "+ /mnt/**",
                 "+ /proc/**",
                 "+ /run/**",
                 "+ /sys/**",
                 "+ /tmp/**",
-                "+ /var/spool/**",
+            ]
+            if self._exists("/var/spool"):
+                ret.append("+ /var/spool/**")
+            ret += [
                 "+ /var/tmp/**",
             ]
+            return ret
         else:
             assert False
 
