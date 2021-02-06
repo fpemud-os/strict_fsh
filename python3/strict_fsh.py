@@ -89,7 +89,7 @@ class FileSystemHierarchy:
         # /home/X
         for fn in self._glob("/home/*"):
             self._checkDir(fn)
-            self._checkEntryMetadata(fn, 0o700, os.path.basename(fn), os.path.basename(fn))
+            self._checkEntryMetadata(fn, 0o0700, os.path.basename(fn), os.path.basename(fn))
         if not self._exists("/home/root"):
             # no way to autofix
             raise FshCheckError("\"/home/root\" does not exist")
@@ -260,6 +260,11 @@ class FileSystemHierarchy:
         if self._exists("/var/db"):
             self._checkDir("/var/db")
             self._checkEntryMetadata("/var/db", 0o0755, "root", "root")
+
+        # /var/empty
+        if self._exists("/var/empty"):
+            self._checkDir("/var/empty")
+            self._checkEntryMetadata("/var/empty", 0o0755, "root", "root")
 
         # /var/games
         if self._exists("/var/games"):
