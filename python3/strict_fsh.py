@@ -2,7 +2,7 @@
 
 # strict_fsh.py - strict file system hierarchy
 #
-# Copyright (c) 2005-2011 Fpemud <fpemud@sina.com>
+# Copyright (c) 2020-2021 Fpemud <fpemud@sina.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -49,9 +49,8 @@ class FileSystemHierarchy:
 
     """We comply with FHS (https://refspecs.linuxfoundation.org/fhs.shtml) but have some extra rules:
          1. Fedora UsrMerge (https://fedoraproject.org/wiki/Features/UsrMove)
-         2. using /home/root as root's home directory, and symlink /root to it
-         3. optional toolchain directories in /usr
-         4. optional swap file /var/swap.dat
+         2. optional toolchain directories in /usr
+         3. optional swap file /var/swap.dat
     """
 
     def __init__(self, dirPrefix="/"):
@@ -275,9 +274,6 @@ class FileSystemHierarchy:
         for fn in self._glob("/home/*"):
             self._checkDir(fn)
             self._checkEntryMetadata(fn, 0o0700, os.path.basename(fn), os.path.basename(fn))
-        if not self._exists("/home/root"):
-            # no way to autofix
-            raise FshCheckError("\"/home/root\" does not exist")
 
         # /lib
         self._checkSymlink("/lib", "usr/lib")
@@ -305,7 +301,8 @@ class FileSystemHierarchy:
         self._checkEntryMetadata("/proc", 0o0555, "root", "root")
 
         # /root
-        self._checkSymlink("/root", "home/root")
+        self._checkDir("/root")
+        self._checkEntryMetadata("/root", 0o0700, "root", "root")
 
         # /run
         self._checkDir("/run")
