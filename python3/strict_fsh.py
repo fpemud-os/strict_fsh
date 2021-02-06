@@ -46,6 +46,7 @@ __version__ = "0.0.1"
 def wildcards_match(name, wildcards):
     """
     Test whether NAME matches WILDCARDS.
+    The functions operate by translating the pattern into a regular expression.
 
     Wildcard style:
     o      a '*' matches any path component, but it stops at slashes.
@@ -53,9 +54,6 @@ def wildcards_match(name, wildcards):
     o      a trailing "dir_name/***" will match both the directory (as if "dir_name/" had been specified) and everything in the directory (as if "dir_name/**" had been specified).
     o      wildcard must begin with a '/'.
     o      wildcards are case sensitive.
-
-    The functions operate by translating the pattern into a regular expression.
-    The compiled regular expressions is cached for speed.
     """
 
     match = _compile_pattern(wildcards)
