@@ -384,8 +384,13 @@ class FileSystemHierarchy:
         ownerId = pwd.getpwnam(owner).pw_uid
         groupId = grp.getgrnam(group).gr_gid
 
+        if os.path.isdir(fn):
+            realMode = mode | 0o40000
+        else:
+            realMode = mode
+        
         s = os.stat(fullfn)
-        if s.st_mode != mode:
+        if s.st_mode != realMode:
             if self.bAutoFix:
                 os.chmod(fullfn, mode)
             else:
