@@ -151,7 +151,8 @@ class FileSystemHierarchy:
                 "+ /var/tmp",
             ]
             return ret
-        elif wildcards_flag == self.WILDCARDS_SYSTEM_DATA:
+
+        if wildcards_flag == self.WILDCARDS_SYSTEM_DATA:
             assert user is None
             ret = []
             if self._exists("/var/db"):
@@ -163,13 +164,15 @@ class FileSystemHierarchy:
             if self._exists("/var/swap.dat"):
                 ret.append("+ /var/swap.dat")
             return ret
-        elif wildcards_flag == self.WILDCARDS_SYSTEM_CACHE:
+
+        if wildcards_flag == self.WILDCARDS_SYSTEM_CACHE:
             assert user is None
             ret = []
             if self._exists("/var/cache"):
                 ret.append("+ /var/cache/**")
             return ret
-        elif wildcards_flag == self.WILDCARDS_USER_DATA:
+
+        if wildcards_flag == self.WILDCARDS_USER_DATA:
             ret = []
             if user is None or user == "root":
                 ret += [
@@ -184,7 +187,8 @@ class FileSystemHierarchy:
                         "+ /%s/**" % (fn)
                     ]
             return ret
-        elif wildcards_flag == self.WILDCARDS_USER_CACHE:
+
+        if wildcards_flag == self.WILDCARDS_USER_CACHE:
             ret = []
             if user is None or user == "root":
                 if self._exists("/root/.cache"):
@@ -195,7 +199,8 @@ class FileSystemHierarchy:
                     if self._exists("%s/.cache" % (fn)):
                         ret.append("+ %s/.cache/**" % (fn))
             return ret
-        elif wildcards_flag == self.WILDCARDS_RUNTIME:
+
+        if wildcards_flag == self.WILDCARDS_RUNTIME:
             assert user is None
             ret = [
                 "+ /dev/**",
@@ -211,8 +216,8 @@ class FileSystemHierarchy:
                 "+ /var/tmp/**",
             ]
             return ret
-        else:
-            assert False
+
+        assert False
 
     def wildcards_glob(self, wildcards):
         _check_patterns(wildcards)
