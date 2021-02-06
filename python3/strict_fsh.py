@@ -674,18 +674,14 @@ class FshWildcardError(Exception):
     pass
 
 
-def _check_pattern(wildcard):
-    if not wildcard.startswith("+ ") and not wildcard.startswith("- "):
-        raise FshWildcardError("invalid wildcard \"%s\"" % (wildcard))
-    if len(wildcard) < 3 or wildcard[2] != '/':
-        raise FshWildcardError("invalid wildcard \"%s\"" % (wildcard))
-    if "*" in wildcard and not wildcard.endswith("/***") and not wildcard.endswith("/**"):
-        raise FshWildcardError("invalid wildcard \"%s\"" % (wildcard))
-
-
 def _check_patterns(wildcards):
     for w in wildcards:
-        _check_pattern(w)
+        if not wildcard.startswith("+ ") and not wildcard.startswith("- "):
+            raise FshWildcardError("invalid wildcard \"%s\"" % (wildcard))
+        if len(wildcard) < 3 or wildcard[2] != '/':
+            raise FshWildcardError("invalid wildcard \"%s\"" % (wildcard))
+        if "*" in wildcard and not wildcard.endswith("/***") and not wildcard.endswith("/**"):
+            raise FshWildcardError("invalid wildcard \"%s\"" % (wildcard))
 
 
 def _match_pattern(name, wildcard):
