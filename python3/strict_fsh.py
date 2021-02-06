@@ -309,7 +309,7 @@ class FileSystemHierarchy:
         fullfn = os.path.join(self._dirPrefix, fn[1:])
 
         ret = glob.glob(fullfn)
-        ret = [x[len(self._dirPrefix):] for x in ret]
+        ret = ["/" + x[len(self._dirPrefix):] for x in ret]
         return ret
 
     def _checkDir(self, fn):
