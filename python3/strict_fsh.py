@@ -87,37 +87,58 @@ class FileSystemHierarchy:
          4. no /var/games, why games have global data
     """
 
-    WILDCARDS_SYSTEM = 1             # system files
-    WILDCARDS_SYSTEM_DATA = 2        # system data files
-    WILDCARDS_SYSTEM_CACHE = 3       # system cache files
-    WILDCARDS_USER_DATA = 4          # user data files (including root user)
-    WILDCARDS_USER_CACHE = 5         # user cache files
-    WILDCARDS_RUNTIME = 6            # runtime files
+    WILDCARDS_LAYOUT = 1             # FSH layout files
+    WILDCARDS_SYSTEM = 2             # system files
+    WILDCARDS_SYSTEM_DATA = 3        # system data files
+    WILDCARDS_SYSTEM_CACHE = 4       # system cache files, subset of system data files
+    WILDCARDS_USER_DATA = 5          # user data files (including root user)
+    WILDCARDS_USER_CACHE = 6         # user cache files, subset of user data files
+    WILDCARDS_RUNTIME = 7            # runtime files
 
     def __init__(self, dirPrefix="/"):
         self._dirPrefix = dirPrefix
         self._record = set()
 
     def get_wildcards(self, user=None, wildcards_flag=None):
-        if wildcards_flag == self.WILDCARDS_SYSTEM:
+        if wildcards_flag == self.WILDCARDS_LAYOUT:
             assert user is None
             ret = [
                 "+ /",
                 "+ /bin",             # symlink
-                "+ /boot/***",
+                "+ /boot",
                 "+ /dev",
-                "+ /etc/***",
+                "+ /etc",
+                "+ /etc/passwd",
+                "+ /etc/group",
+                "+ /etc/shadow",
+                "+ /etc/gshadow",
+                "+ /etc/subuid",
+                "+ /etc/subgid",
+            ]
+            if self._exists("/etc/passwd-"):
+                ret.append("/etc/passwd-")
+            if self._exists("/etc/group-"):
+                ret.append("/etc/group-")
+            if self._exists("/etc/shadow-"):
+                ret.append("/etc/shadow-")
+            if self._exists("/etc/gshadow-"):
+                ret.append("/etc/gshadow-")
+            if self._exists("/etc/subuid-"):
+                ret.append("/etc/subuid-")
+            if self._exists("/etc/subgid-"):
+                ret.append("/etc/subgid-")
+            ret += [
                 "+ /home",
             ]
-            for fn in self._glob("/home/*"):
-                ret.apend("+ %s" % (fn))
             ret += [
                 "+ /lib",             # symlink
                 "+ /lib64",           # symlink
                 "+ /mnt",
             ]
             if self._exists("/opt"):
-                ret.append("+ /opt/***")
+                ret.append("+ /opt")
+                if self._exists("/opt/bin"):
+                    ret.append("+ /opt/bin")
             ret += [
                 "+ /proc",
                 "+ /root",
@@ -125,7 +146,52 @@ class FileSystemHierarchy:
                 "+ /sbin",            # symlink
                 "+ /sys",
                 "+ /tmp",
-                "+ /usr/***",
+                "+ /usr",
+                "+ /usr/bin",
+            ]
+            if self._exists("/usr/games"):
+                ret.append("+ /usr/games")
+                if self._exists("/usr/games/bin"):
+                    ret.append("+ /usr/games/bin")
+            if self._exists("/usr/include"):
+                ret.append("+ /usr/include")
+            ret += [
+                "+ /usr/lib",
+                "+ /usr/lib64",
+                "+ /usr/libexec",
+            ]
+            if self._exists("/usr/local"):
+                ret.append("+ /usr/local")
+                if self._exists("/usr/local/bin"):
+                    ret.append("+ /usr/local/bin")
+                if self._exists("/usr/local/etc"):
+                    ret.append("+ /usr/local/etc")
+                if self._exists("/usr/local/games"):
+                    ret.append("+ /usr/local/games")
+                if self._exists("/usr/local/include"):
+                    ret.append("+ /usr/local/include")
+                if self._exists("/usr/local/lib"):
+                    ret.append("+ /usr/local/lib")
+                if self._exists("/usr/local/lib64"):
+                    ret.append("+ /usr/local/lib64")
+                if self._exists("/usr/local/man"):
+                    ret.append("+ /usr/local/man")
+                if self._exists("/usr/local/sbin"):
+                    ret.append("+ /usr/local/sbin")
+                if self._exists("/usr/local/share"):
+                    ret.append("+ /usr/local/share")
+                if self._exists("/usr/local/src"):
+                    ret.append("+ /usr/local/src")
+            ret += [
+                "+ /usr/sbin",
+                "+ /usr/share",
+            ]
+            if self._exists("/usr/src"):
+                ret.append("+ /usr/src")
+            for fn in self._glob("/usr/*"):
+                if self._isToolChainName(os.path.basename(fn)):
+                    ret.append("+ %s" % (fn))
+            ret += [
                 "+ /var",
             ]
             if self._exists("/var/cache"):
@@ -152,9 +218,20 @@ class FileSystemHierarchy:
             ]
             return ret
 
+        if wildcards_flag == self.WILDCARDS_SYSTEM:
+            assert user is None
+            return [
+                "+ /boot/**",
+                "+ /etc/**",
+                "+ /opt/**",
+                "+ /usr/**",
+            ]
+
         if wildcards_flag == self.WILDCARDS_SYSTEM_DATA:
             assert user is None
             ret = []
+            if self._exists("/var/cache"):
+                ret.append("+ /var/cache/**")
             if self._exists("/var/db"):
                 ret.append("+ /var/db/**")
             if self._exists("/var/lib"):
@@ -175,17 +252,11 @@ class FileSystemHierarchy:
         if wildcards_flag == self.WILDCARDS_USER_DATA:
             ret = []
             if user is None or user == "root":
-                ret += [
-                    "- /root/.cache/**",
-                    "+ /root/**"
-                ]
+                ret.append("+ /root/**")                # "/root" belongs to FSH layout
             for fn in self._glob("/home/*"):
                 fuser = os.path.basename(fn)
                 if user is None or fuser != user:
-                    ret += [
-                        "- /%s/.cache/**" % (fn),
-                        "+ /%s/**" % (fn)
-                    ]
+                    ret.append("+ %s/***" % (fn))       # "/home/X" belongs to user data
             return ret
 
         if wildcards_flag == self.WILDCARDS_USER_CACHE:
