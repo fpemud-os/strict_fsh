@@ -42,6 +42,15 @@ __author__ = "fpemud@sina.com (Fpemud)"
 __version__ = "0.0.1"
 
 
+WILDCARDS_LAYOUT = 1             # FSH layout files
+WILDCARDS_SYSTEM = 2             # system files
+WILDCARDS_SYSTEM_DATA = 3        # system data files
+WILDCARDS_SYSTEM_CACHE = 4       # system cache files, subset of system data files
+WILDCARDS_USER_DATA = 5          # user data files (including root user)
+WILDCARDS_USER_CACHE = 6         # user cache files, subset of user data files
+WILDCARDS_RUNTIME = 7            # runtime files
+
+
 def wildcards_match(name, wildcards):
     """
     Test whether NAME matches WILDCARDS.
@@ -87,20 +96,12 @@ class FileSystemHierarchy:
          4. no /var/games, why games have global data
     """
 
-    WILDCARDS_LAYOUT = 1             # FSH layout files
-    WILDCARDS_SYSTEM = 2             # system files
-    WILDCARDS_SYSTEM_DATA = 3        # system data files
-    WILDCARDS_SYSTEM_CACHE = 4       # system cache files, subset of system data files
-    WILDCARDS_USER_DATA = 5          # user data files (including root user)
-    WILDCARDS_USER_CACHE = 6         # user cache files, subset of user data files
-    WILDCARDS_RUNTIME = 7            # runtime files
-
     def __init__(self, dirPrefix="/"):
         self._dirPrefix = dirPrefix
         self._record = set()
 
     def get_wildcards(self, user=None, wildcards_flag=None):
-        if wildcards_flag == self.WILDCARDS_LAYOUT:
+        if wildcards_flag == WILDCARDS_LAYOUT:
             assert user is None
             ret = [
                 "+ /",
@@ -218,7 +219,7 @@ class FileSystemHierarchy:
             ]
             return ret
 
-        if wildcards_flag == self.WILDCARDS_SYSTEM:
+        if wildcards_flag == WILDCARDS_SYSTEM:
             assert user is None
             return [
                 "+ /boot/**",
@@ -227,7 +228,7 @@ class FileSystemHierarchy:
                 "+ /usr/**",
             ]
 
-        if wildcards_flag == self.WILDCARDS_SYSTEM_DATA:
+        if wildcards_flag == WILDCARDS_SYSTEM_DATA:
             assert user is None
             ret = []
             if self._exists("/var/cache"):
@@ -242,14 +243,14 @@ class FileSystemHierarchy:
                 ret.append("+ /var/swap.dat")
             return ret
 
-        if wildcards_flag == self.WILDCARDS_SYSTEM_CACHE:
+        if wildcards_flag == WILDCARDS_SYSTEM_CACHE:
             assert user is None
             ret = []
             if self._exists("/var/cache"):
                 ret.append("+ /var/cache/**")
             return ret
 
-        if wildcards_flag == self.WILDCARDS_USER_DATA:
+        if wildcards_flag == WILDCARDS_USER_DATA:
             ret = []
             if user is None or user == "root":
                 ret.append("+ /root/**")                # "/root" belongs to FSH layout
@@ -259,7 +260,7 @@ class FileSystemHierarchy:
                     ret.append("+ %s/***" % (fn))       # "/home/X" belongs to user data
             return ret
 
-        if wildcards_flag == self.WILDCARDS_USER_CACHE:
+        if wildcards_flag == WILDCARDS_USER_CACHE:
             ret = []
             if user is None or user == "root":
                 if self._exists("/root/.cache"):
@@ -271,7 +272,7 @@ class FileSystemHierarchy:
                         ret.append("+ %s/.cache/**" % (fn))
             return ret
 
-        if wildcards_flag == self.WILDCARDS_RUNTIME:
+        if wildcards_flag == WILDCARDS_RUNTIME:
             assert user is None
             ret = [
                 "+ /dev/**",
