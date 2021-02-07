@@ -98,7 +98,7 @@ class RootFs:
 
     def __init__(self, dirPrefix="/"):
         self._helper = _HelperPrefixedDirOp()
-        self.__dict__.update(self._helper)
+        self.__dict__.update(self._helper.__dict__)
 
         self._dirPrefix = dirPrefix
 
@@ -126,7 +126,7 @@ class RootFs:
 
     def wildcards_glob(self, wildcards):
         _HelperWildcard.check_patterns(wildcards)
-        return self._wildcardGlob(wildcards)
+        return self._wildcardsGlob(wildcards)
 
     def check(self, deep_check=False, auto_fix=False):
         self._bAutoFix = auto_fix
@@ -599,7 +599,7 @@ class RootFs:
                         if w.endswith("/***") or w.endswith("/**"):
                             break
                 else:
-                    if _HelperWildcard.is_pattern_inc_or_exc(w) and w[2:].startswith(curPath + "/"):
+                    if _HelperWildcard.is_pattern_inc_or_exc(w) and w[2:].startswith(_pathAddSlash(curPath)):
                         bRecursive = True
                         if bRecorded:
                             break
@@ -618,7 +618,7 @@ class PreMountRootFs:
 
     def __init__(self, dir, mounted_boot=True, mounted_etc=True, mounted_home=True, mounted_usr=True, mounted_var=True):
         self._helper = _HelperPrefixedDirOp()
-        self.__dict__.update(self._helper)
+        self.__dict__.update(self._helper.__dict__)
 
         self._dirPrefix = dir
         self._bMountBoot = mounted_boot     # /boot is mounted
@@ -747,11 +747,11 @@ class _HelperWildcard:
         p = wildcard[2:]
         if p.endswith("/***"):
             p = os.path.dirname(p)
-            if name == p or name.startswith(p + "/"):
+            if name == p or name.startswith(_pathAddSlash(p)):
                 return True
         elif p.endswith("/**"):
             p = os.path.dirname(p)
-            if name.startswith(p + "/"):
+            if name.startswith(_pathAddSlash(p)):
                 return True
         else:
             if name == p:
@@ -923,3 +923,10 @@ def _isToolChainName(name):
         return True
     else:
         return False
+
+
+def _pathAddSlash(path):
+    if path == "/":
+        return path
+    else:
+        return path + "/"
