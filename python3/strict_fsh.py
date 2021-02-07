@@ -91,9 +91,10 @@ class RootFs:
 
     """We comply with FHS (https://refspecs.linuxfoundation.org/fhs.shtml) but have some extra rules:
          1. Fedora UsrMerge (https://fedoraproject.org/wiki/Features/UsrMove)
-         2. optional toolchain directories in /usr
-         3. optional swap file /var/swap.dat
-         4. no /var/games, why games have global data
+         2. /opt symlinks to /usr/opt
+         3. optional toolchain directories in /usr
+         4. optional swap file /var/swap.dat
+         5. no /var/games, why games have global data
     """
 
     def __init__(self, dirPrefix="/"):
@@ -200,10 +201,7 @@ class RootFs:
         self._checkDir("/mnt", 0o0755, "root", "root")
 
         # /opt
-        if self._exists("/opt"):
-            self._checkDir("/opt", 0o0755, "root", "root")
-            if self._exists("/opt/bin"):
-                self._checkDir("/opt/bin", 0o0755, "root", "root")
+        self._checkSymlink("/opt", "usr/opt")
 
         # /proc
         self._checkDir("/proc", 0o0555, "root", "root")
@@ -271,6 +269,11 @@ class RootFs:
                 self._checkDir("/usr/local/share", 0o0755, "root", "root")
             if self._exists("/usr/local/src"):
                 self._checkDir("/usr/local/src", 0o0755, "root", "root")
+
+        # /usr/opt
+        self._checkDir("/usr/opt", 0o0755, "root", "root")
+        if self._exists("/usr/opt/bin"):
+            self._checkDir("/usr/opt/bin", 0o0755, "root", "root")
 
         # /usr/sbin
         self._checkDir("/usr/sbin", 0o0755, "root", "root")
@@ -420,12 +423,7 @@ class RootFs:
             "+ /lib",             # symlink
             "+ /lib64",           # symlink
             "+ /mnt",
-        ]
-        if self._exists("/opt"):
-            ret.append("+ /opt")
-            if self._exists("/opt/bin"):
-                ret.append("+ /opt/bin")
-        ret += [
+            "+ /opt",             # symlink
             "+ /proc",
             "+ /root",
             "+ /run",
@@ -468,6 +466,10 @@ class RootFs:
                 ret.append("+ /usr/local/share")
             if self._exists("/usr/local/src"):
                 ret.append("+ /usr/local/src")
+        if True:
+            ret.append("+ /usr/opt")
+            if self._exists("/usr/opt/bin"):
+                ret.append("+ /usr/opt/bin")
         ret += [
             "+ /usr/sbin",
             "+ /usr/share",
@@ -508,7 +510,6 @@ class RootFs:
         return [
             "+ /boot/**",
             "+ /etc/**",
-            "+ /opt/**",
             "+ /usr/**",
         ]
 
@@ -624,7 +625,7 @@ class PreMountRootFs:
         self._bMountBoot = mounted_boot     # /boot is mounted
         self._bMountEtc = mounted_etc       # /etc is mounted
         self._bMountHome = mounted_home     # /root and /home are mounted
-        self._bMountUsr = mounted_usr       # /opt and /usr are mounted
+        self._bMountUsr = mounted_usr       # /usr is mounted
         self._bMountVar = mounted_var       # /var is mounted
 
     def check(self, auto_fix=False):
@@ -666,10 +667,7 @@ class PreMountRootFs:
             self._checkDirIsEmpty("/mnt")
 
             # /opt
-            if self._exists("/opt"):
-                self._checkDir("/opt")
-                if self._bMountUsr:
-                    self._checkDirIsEmpty("/opt")
+            self._checkSymlink("/opt", "usr/opt")
 
             # /proc
             self._checkDir("/proc")
