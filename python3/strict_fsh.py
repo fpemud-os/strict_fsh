@@ -51,6 +51,11 @@ WILDCARDS_USER_CACHE = 6         # user cache files, subset of user data files
 WILDCARDS_RUNTIME = 7            # runtime files
 
 
+def merge_wildcards(wildcards1, wildcards2):
+    assert all(_HelperWildcard.is_pattern_inc_or_exc(w) for w in wildcards1)        # FIXME
+    return wildcards1 + wildcards2
+
+
 def wildcards_match(name, wildcards):
     """
     Test whether NAME matches WILDCARDS.
@@ -91,7 +96,6 @@ class RootFs:
 
     """We comply with FHS (https://refspecs.linuxfoundation.org/fhs.shtml) but have some extra rules:
          1. Fedora UsrMerge (https://fedoraproject.org/wiki/Features/UsrMove)
-         2. /opt symlinks to /usr/opt
          3. optional toolchain directories in /usr
          4. optional swap file /var/swap.dat
          5. no /var/games, why games have global data
@@ -201,7 +205,7 @@ class RootFs:
         self._checkDir("/mnt", 0o0755, "root", "root")
 
         # /opt
-        self._checkSymlink("/opt", "usr/opt")
+        self._checkDir("/opt", 0o0755, "root", "root")
 
         # /proc
         self._checkDir("/proc", 0o0555, "root", "root")
@@ -269,11 +273,6 @@ class RootFs:
                 self._checkDir("/usr/local/share", 0o0755, "root", "root")
             if self._exists("/usr/local/src"):
                 self._checkDir("/usr/local/src", 0o0755, "root", "root")
-
-        # /usr/opt
-        self._checkDir("/usr/opt", 0o0755, "root", "root")
-        if self._exists("/usr/opt/bin"):
-            self._checkDir("/usr/opt/bin", 0o0755, "root", "root")
 
         # /usr/sbin
         self._checkDir("/usr/sbin", 0o0755, "root", "root")
@@ -423,7 +422,7 @@ class RootFs:
             "+ /lib",             # symlink
             "+ /lib64",           # symlink
             "+ /mnt",
-            "+ /opt",             # symlink
+            "+ /opt",
             "+ /proc",
             "+ /root",
             "+ /run",
@@ -617,15 +616,14 @@ class RootFs:
 
 class PreMountRootFs:
 
-    def __init__(self, dir, mounted_boot=True, mounted_etc=True, mounted_home=True, mounted_usr=True, mounted_var=True):
+    def __init__(self, dir, mounted_boot=True, mounted_home=True, mounted_usr=True, mounted_var=True):
         self._helper = _HelperPrefixedDirOp()
         self.__dict__.update(self._helper.__dict__)
 
         self._dirPrefix = dir
         self._bMountBoot = mounted_boot     # /boot is mounted
-        self._bMountEtc = mounted_etc       # /etc is mounted
-        self._bMountHome = mounted_home     # /root and /home are mounted
-        self._bMountUsr = mounted_usr       # /usr is mounted
+        self._bMountHome = mounted_home     # /root, /home are mounted
+        self._bMountUsr = mounted_usr       # /etc, /opt, /usr is mounted
         self._bMountVar = mounted_var       # /var is mounted
 
     def check(self, auto_fix=False):
@@ -648,7 +646,7 @@ class PreMountRootFs:
 
             # /etc
             self._checkDir("/etc")
-            if self._bMountEtc:
+            if self._bMountUsr:
                 self._checkDirIsEmpty("/etc")
 
             # /home
@@ -667,7 +665,9 @@ class PreMountRootFs:
             self._checkDirIsEmpty("/mnt")
 
             # /opt
-            self._checkSymlink("/opt", "usr/opt")
+            self._checkDir("/opt")
+            if self._bMountUsr:
+                self._checkDirIsEmpty("/opt")
 
             # /proc
             self._checkDir("/proc")
