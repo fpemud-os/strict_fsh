@@ -876,7 +876,12 @@ class _HelperPrefixedDirOp:
     def _checkDirIsEmpty(self, fn):
         assert os.path.isabs(fn)
         fullfn = os.path.join(self.p._dirPrefix, fn[1:])
-        if len(os.listdir(fullfn)) > 0:
+        bFound = False
+        for fn in os.listdir(fullfn):
+            if not fn.startswith(".keep"):
+                bFound = True
+                break
+        if bFound:
             # dangerous to autofix
             self.p._checkResult.append("\"%s\" is not empty." % (fn))
 
