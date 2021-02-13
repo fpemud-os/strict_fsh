@@ -102,7 +102,7 @@ class RootFs:
     """
 
     def __init__(self, dirPrefix="/"):
-        self._helper = _HelperPrefixedDirOp()
+        self._helper = _HelperPrefixedDirOp(self)
         self._dirPrefix = dirPrefix
 
     def get_wildcards(self, user=None, wildcards_flag=None):
@@ -618,7 +618,7 @@ class RootFs:
 class PreMountRootFs:
 
     def __init__(self, dir, mounted_boot=True, mounted_home=True, mounted_usr=True, mounted_var=True):
-        self._helper = _HelperPrefixedDirOp()
+        self._helper = _HelperPrefixedDirOp(self)
         self._dirPrefix = dir
         self._bMountBoot = mounted_boot     # /boot is mounted
         self._bMountHome = mounted_home     # /root, /home are mounted
@@ -765,102 +765,105 @@ class _HelperWildcard:
 
 class _HelperPrefixedDirOp:
 
-    # we need self._dirPrefix, self._bAutoFix, self._record, self._checkResult
+    # we need self.p._dirPrefix, self.p._bAutoFix, self.p._record, self.p._checkResult
+
+    def __init__(self, parent):
+        self.p = parent
 
     def _exists(self, fn):
         assert os.path.isabs(fn)
-        fullfn = os.path.join(self._dirPrefix, fn[1:])
+        fullfn = os.path.join(self.p._dirPrefix, fn[1:])
 
         return os.path.exists(fullfn)
 
     def _glob(self, fn):
         assert os.path.isabs(fn)
-        fullfn = os.path.join(self._dirPrefix, fn[1:])
+        fullfn = os.path.join(self.p._dirPrefix, fn[1:])
 
         ret = glob.glob(fullfn)
-        ret = ["/" + x[len(self._dirPrefix):] for x in ret]
+        ret = ["/" + x[len(self.p._dirPrefix):] for x in ret]
         return ret
 
     def _checkDir(self, fn, mode=None, owner=None, group=None):
         assert os.path.isabs(fn)
-        fullfn = os.path.join(self._dirPrefix, fn[1:])
+        fullfn = os.path.join(self.p._dirPrefix, fn[1:])
 
         if not os.path.exists(fullfn):
-            if self._bAutoFix:
+            if self.p._bAutoFix:
                 os.mkdir(fullfn)
             else:
-                self._checkResult.append("\"%s\" does not exist." % (fn))
+                self.p._checkResult.append("\"%s\" does not exist." % (fn))
                 return
 
         if os.path.islink(fullfn) or not os.path.isdir(fullfn):
             # no way to autofix
-            self._checkResult.append("\"%s\" is invalid." % (fn))
+            self.p._checkResult.append("\"%s\" is invalid." % (fn))
             return
 
         if mode is not None:
             self.__checkMetadata(fn, fullfn, mode, owner, group)
 
-        self._record.add(fn)
+        self.p._record.add(fn)
 
     def _checkFile(self, fn, mode=None, owner=None, group=None):
         assert os.path.isabs(fn)
-        fullfn = os.path.join(self._dirPrefix, fn[1:])
+        fullfn = os.path.join(self.p._dirPrefix, fn[1:])
 
         if not os.path.exists(fullfn):
             # no way to autofix
-            self._checkResult.append("\"%s\" does not exist." % (fn))
+            self.p._checkResult.append("\"%s\" does not exist." % (fn))
             return
 
         if os.path.islink(fullfn) or not os.path.isfile(fullfn):
             # no way to autofix
-            self._checkResult.append("\"%s\" is invalid." % (fn))
+            self.p._checkResult.append("\"%s\" is invalid." % (fn))
             return
 
         if mode is not None:
             self.__checkMetadata(fn, fullfn, mode, owner, group)
 
-        self._record.add(fn)
+        self.p._record.add(fn)
 
     def _checkSymlink(self, fn, target):
         assert os.path.isabs(fn)
-        fullfn = os.path.join(self._dirPrefix, fn[1:])
+        fullfn = os.path.join(self.p._dirPrefix, fn[1:])
 
         if not os.path.exists(fullfn):
-            if self._bAutoFix:
+            if self.p._bAutoFix:
                 os.symlink(target, fullfn)
             else:
-                self._checkResult.append("\"%s\" does not exist." % (fn))
+                self.p._checkResult.append("\"%s\" does not exist." % (fn))
                 return
 
         bValid = False
         if not os.path.islink(fullfn):
             if os.path.isdir(fullfn):
-                fullTarget = os.path.join(self._dirPrefix, target)
+                fullTarget = os.path.join(self.p._dirPrefix, target)
                 if os.path.isdir(fullTarget):
-                    if self._bAutoFix:
+                    if self.p._bAutoFix:
                         ret = filecmp.dircmp(fullfn, fullTarget)
                         if len(ret.common) == 0 and len(ret.common_dirs) == 0:
                             # bValid = True
                             raise CheckError("\"%s\" is invalid, can autofix" % (fn))       # FIXME
         elif os.readlink(fullfn) != target:
-            if self._bAutoFix:
+            if self.p._bAutoFix:
                 os.unlink(fullfn)
                 os.symlink(target, fullfn)
                 bValid = True
         else:
             bValid = True
         if not bValid:
-            self._checkResult.append("\"%s\" is invalid." % (fn))
+            self.p._checkResult.append("\"%s\" is invalid." % (fn))
 
-        self._record.add(fn)
+        self.p._record.add(fn)
 
     def _checkDevNode(self, fn, major, minor, mode=None, owner=None, group=None):
         assert os.path.isabs(fn)
-        fullfn = os.path.join(self._dirPrefix, fn[1:])
+        fullfn = os.path.join(self.p._dirPrefix, fn[1:])
 
         if not os.path.exists(fullfn):
             # FIXME: autofix
-            self._checkResult.append("\"%s\" does not exist." % (fn))
+            self.p._checkResult.append("\"%s\" does not exist." % (fn))
             return
 
         # FIXME: check major, minor
@@ -868,27 +871,27 @@ class _HelperPrefixedDirOp:
         if mode is not None:
             self.__checkMetadata(fn, fullfn, mode, owner, group)
 
-        self._record.add(fn)
+        self.p._record.add(fn)
 
     def _checkDirIsEmpty(self, fn):
         assert os.path.isabs(fn)
-        fullfn = os.path.join(self._dirPrefix, fn[1:])
+        fullfn = os.path.join(self.p._dirPrefix, fn[1:])
         if len(os.listdir(fullfn)) > 0:
             # dangerous to autofix
-            self._checkResult.append("\"%s\" is not empty." % (fn))
+            self.p._checkResult.append("\"%s\" is not empty." % (fn))
 
     def _checkMetadata(self, fn, mode, owner, group):
         assert os.path.isabs(fn)
-        fullfn = os.path.join(self._dirPrefix, fn[1:])
+        fullfn = os.path.join(self.p._dirPrefix, fn[1:])
         self.__checkMetadata(fn, fullfn, mode, owner, group)
 
     def _checkNoRedundantEntry(self, fn):
         assert os.path.isabs(fn)
-        fullfn = os.path.join(self._dirPrefix, fn[1:])
+        fullfn = os.path.join(self.p._dirPrefix, fn[1:])
         for fn2 in os.listdir(fullfn):
             fullfn2 = os.path.join(fullfn, fn2)
-            if fullfn2 not in self._record:
-                self._checkResult.append("\"%s\" should not exist." % (fullfn2[len(self._dirPrefix):]))
+            if fullfn2 not in self.p._record:
+                self.p._checkResult.append("\"%s\" should not exist." % (fullfn2[len(self.p._dirPrefix):]))
 
     def __checkMetadata(self, fn, fullfn, mode, owner, group):
         assert stat.S_IFMT(mode) == 0                      # no file type bits
@@ -897,20 +900,20 @@ class _HelperPrefixedDirOp:
         ownerId = pwd.getpwnam(owner).pw_uid
         groupId = grp.getgrnam(group).gr_gid
         if stat.S_IMODE(s.st_mode) != mode:
-            if self._bAutoFix:
+            if self.p._bAutoFix:
                 os.chmod(fullfn, mode)
             else:
-                self._checkResult.append("\"%s\" has invalid permission." % (fn))
+                self.p._checkResult.append("\"%s\" has invalid permission." % (fn))
             if s.st_uid != ownerId:
-                if self._bAutoFix:
+                if self.p._bAutoFix:
                     os.chown(fullfn, ownerId, s.st_gid)
                 else:
-                    self._checkResult.append("\"%s\" has invalid owner." % (fn))
+                    self.p._checkResult.append("\"%s\" has invalid owner." % (fn))
             if s.st_gid != groupId:
-                if self._bAutoFix:
+                if self.p._bAutoFix:
                     os.chown(fullfn, s.st_uid, groupId)
                 else:
-                    self._checkResult.append("\"%s\" has invalid owner group." % (fn))
+                    self.p._checkResult.append("\"%s\" has invalid owner group." % (fn))
 
 
 def _isToolChainName(name):
