@@ -896,9 +896,9 @@ class _HelperPrefixedDirOp:
         for fn2 in os.listdir(fullfn):
             if bIgnoreDotKeepFiles and fn2.startswith(".keep"):
                 continue
-            fullfn2 = os.path.join(fullfn, fn2)
+            fullfn2 = os.path.join(fn, fn2)
             if fullfn2 not in self.p._record:
-                self.p._checkResult.append("\"%s\" should not exist." % (fullfn2[len(self.p._dirPrefix):]))
+                self.p._checkResult.append("\"%s\" should not exist." % (fullfn2))
 
     def __checkMetadata(self, fn, fullfn, mode, owner, group):
         assert stat.S_IFMT(mode) == 0                      # no file type bits
