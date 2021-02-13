@@ -103,8 +103,6 @@ class RootFs:
 
     def __init__(self, dirPrefix="/"):
         self._helper = _HelperPrefixedDirOp()
-        self.__dict__.update(self._helper.__dict__)
-
         self._dirPrefix = dirPrefix
 
     def get_wildcards(self, user=None, wildcards_flag=None):
@@ -613,13 +611,14 @@ class RootFs:
                         result.append(curPath)
                     return
 
+    def __getattr__(self, attr):
+        return getattr(self._helper, attr)
+
 
 class PreMountRootFs:
 
     def __init__(self, dir, mounted_boot=True, mounted_home=True, mounted_usr=True, mounted_var=True):
         self._helper = _HelperPrefixedDirOp()
-        self.__dict__.update(self._helper.__dict__)
-
         self._dirPrefix = dir
         self._bMountBoot = mounted_boot     # /boot is mounted
         self._bMountHome = mounted_home     # /root, /home are mounted
@@ -718,6 +717,9 @@ class PreMountRootFs:
                 raise CheckError(self._checkResult)
         finally:
             del self._checkResult
+
+    def __getattr__(self, attr):
+        return getattr(self._helper, attr)
 
 
 class CheckError(Exception):
