@@ -48,7 +48,8 @@ WILDCARDS_SYSTEM_DATA = 3        # system data files
 WILDCARDS_SYSTEM_CACHE = 4       # system cache files, subset of system data files
 WILDCARDS_USER_DATA = 5          # user data files (including root user)
 WILDCARDS_USER_CACHE = 6         # user cache files, subset of user data files
-WILDCARDS_RUNTIME = 7            # runtime files
+WILDCARDS_BOOT = 7               # boot files, subset of system files
+WILDCARDS_RUNTIME = 8            # runtime files
 
 
 def merge_wildcards(wildcards1, wildcards2):
@@ -122,6 +123,9 @@ class RootFs:
             return self._getWildcardsUserData(user)
         if wildcards_flag == WILDCARDS_USER_CACHE:
             return self._getWildcardsUserCache(user)
+        if wildcards_flag == WILDCARDS_BOOT:
+            assert user is None
+            return self._getWildcardsBoot()
         if wildcards_flag == WILDCARDS_RUNTIME:
             assert user is None
             return self._getWildcardsRuntime()
@@ -554,6 +558,13 @@ class RootFs:
                 if self._exists("%s/.cache" % (fn)):
                     ret.append("+ %s/.cache/**" % (fn))
         return ret
+
+    def _getWildcardsBoot(self):
+        return [
+            "+ /boot/***"
+            "+ /usr/lib/modules/***",
+            "+ /usr/lib/firmware/***",
+        ]
 
     def _getWildcardsRuntime(self):
         ret = [
