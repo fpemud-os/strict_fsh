@@ -704,7 +704,7 @@ class PreMountRootFs:
 
             # redundant files
             self._checkNoRedundantEntry("/")
-            self._checkNoRedundantEntry("/dev")
+            self._checkNoRedundantEntry("/dev", True)
         finally:
             del self._record
             del self._bAutoFix
@@ -890,10 +890,12 @@ class _HelperPrefixedDirOp:
         fullfn = os.path.join(self.p._dirPrefix, fn[1:])
         self.__checkMetadata(fn, fullfn, mode, owner, group)
 
-    def _checkNoRedundantEntry(self, fn):
+    def _checkNoRedundantEntry(self, fn, bIgnoreDotKeepFiles=False):
         assert os.path.isabs(fn)
         fullfn = os.path.join(self.p._dirPrefix, fn[1:])
         for fn2 in os.listdir(fullfn):
+            if bIgnoreDotKeepFiles and fn2.startswith(".keep"):
+                continue
             fullfn2 = os.path.join(fullfn, fn2)
             if fullfn2 not in self.p._record:
                 self.p._checkResult.append("\"%s\" should not exist." % (fullfn2[len(self.p._dirPrefix):]))
