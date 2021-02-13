@@ -137,8 +137,10 @@ class RootFs:
         self._record = set()
         try:
             self._check()
+            wildcards = self._getWildcardsSystem()
             if deep_check:
-                self._deepCheck()
+                wildcards = merge_wildcards(wildcards, self._getWildcardsSystemData())
+            self._deepCheckSystem(self._wildcardsGlob(wildcards))
         finally:
             del self._record
             del self._bAutoFix
@@ -334,14 +336,15 @@ class RootFs:
             self._checkNoRedundantEntry("/usr/local")
         self._checkNoRedundantEntry("/var")
 
-    def _deepCheck(self):
-        fnList = []
-        fnList.append(self._wildcardsGlob(self._getWildcardsSystem()))
-        fnList.append(self._wildcardsGlob(self._getWildcardsSystemData()))
-
-        for fnl in fnList:
-            for fn in fnl:
-                fullfn = os.path.join(self._dirPrefix, fn[1:])
+    def _deepCheckSystem(self, fnList):
+        for fn in fnList:
+            fullfn = os.path.join(self._dirPrefix, fn[1:])
+            if not os.path.exists(fullfn):
+                if os.path.islink(fullfn):
+                    self._checkResult.append("\"%s\" is a broken symlink." % (fn))
+                else:
+                    self._checkResult.append("\"%s\" does not exist?!" % (fn))
+            else:
                 m = os.stat(fullfn).st_mode
                 if True:
                     if not (m & stat.S_IRUSR):
