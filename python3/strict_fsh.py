@@ -877,8 +877,8 @@ class _HelperPrefixedDirOp:
         assert os.path.isabs(fn)
         fullfn = os.path.join(self.p._dirPrefix, fn[1:])
         bFound = False
-        for fn in os.listdir(fullfn):
-            if not fn.startswith(".keep"):
+        for fn2 in os.listdir(fullfn):
+            if not fn2.startswith(".keep"):
                 bFound = True
                 break
         if bFound:
