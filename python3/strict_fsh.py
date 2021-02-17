@@ -100,6 +100,7 @@ class RootFs:
       * Fedora UsrMerge (https://fedoraproject.org/wiki/Features/UsrMove)
       * optional toolchain directories in /usr
       * optional swap file /var/swap.dat
+      * optional /var/www
       * no /var/games, why games have global data
     """
 
@@ -334,6 +335,10 @@ class RootFs:
         # /var/tmp
         self._checkDir("/var/tmp", 0o1777, "root", "root")      # /var/tmp has stick bit
 
+        # /var/www
+        if self._exists("/var/www"):
+            self._checkDir("/var/www", 0o0775, "root", "root")
+
         # redundant files
         self._checkNoRedundantEntry("/")
         self._checkNoRedundantEntry("/usr")
@@ -520,6 +525,8 @@ class RootFs:
         ret += [
             "+ /var/tmp",
         ]
+        if self._exists("/var/www"):
+            ret.append("+ /var/www")
         return ret
 
     def _getWildcardsSystem(self):
@@ -541,6 +548,8 @@ class RootFs:
             ret.append("+ /var/log/**")
         if self._exists("/var/swap.dat"):
             ret.append("+ /var/swap.dat")
+        if self._exists("/var/www"):
+            ret.append("+ /var/www/***")
         return ret
 
     def _getWildcardsSystemCache(self):
