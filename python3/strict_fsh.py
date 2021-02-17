@@ -349,26 +349,35 @@ class RootFs:
                 else:
                     self._checkResult.append("\"%s\" does not exist?!" % (fn))
             else:
-                m = os.stat(fullfn).st_mode
+                st = os.stat(fullfn)
                 if True:
-                    if not (m & stat.S_IRUSR):
+                    try:
+                        pwd.getpwuid(st.st_uid)
+                    except KeyError:
+                        self._checkResult.append("\"%s\" has an invalid owner." % (fn))
+                    try:
+                        grp.getgrgid(st.st_gid)
+                    except KeyError:
+                        self._checkResult.append("\"%s\" has an invalid group." % (fn))
+                if True:
+                    if not (st.st_mode & stat.S_IRUSR):
                         self._checkResult.append("\"%s\" is not readable by owner." % (fn))
-                    if not (m & stat.S_IWUSR):
+                    if not (st.st_mode & stat.S_IWUSR):
                         # FIXME: there're so many files violates this rule, strange
                         # self._checkResult.append("\"%s\" is not writeable by owner." % (fn))
                         pass
-                    if not (m & stat.S_IRGRP) and (m & stat.S_IWGRP):
+                    if not (st.st_mode & stat.S_IRGRP) and (st.st_mode & stat.S_IWGRP):
                         self._checkResult.append("\"%s\" is not readable but writable by group." % (fn))
-                    if not (m & stat.S_IROTH) and (m & stat.S_IWOTH):
+                    if not (st.st_mode & stat.S_IROTH) and (st.st_mode & stat.S_IWOTH):
                         self._checkResult.append("\"%s\" is not readable but writable by other." % (fn))
-                    if not (m & stat.S_IRGRP) and ((m & stat.S_IROTH) or (m & stat.S_IWOTH)):
+                    if not (st.st_mode & stat.S_IRGRP) and ((st.st_mode & stat.S_IROTH) or (st.st_mode & stat.S_IWOTH)):
                         self._checkResult.append("\"%s\" is not readable by group but readable/writable by other." % (fn))
-                    if not (m & stat.S_IWGRP) and (m & stat.S_IWOTH):
+                    if not (st.st_mode & stat.S_IWGRP) and (st.st_mode & stat.S_IWOTH):
                         self._checkResult.append("\"%s\" is not writable by group but writable by other." % (fn))
                 if os.path.isdir(fullfn) and not os.path.islink(fullfn):
-                    if (m & stat.S_ISUID):
+                    if (st.st_mode & stat.S_ISUID):
                         self._checkResult.append("\"%s\" should not have SUID bit set." % (fn))
-                    if (m & stat.S_ISGID):
+                    if (st.st_mode & stat.S_ISGID):
                         # if showdn.startswith("/var/lib/portage"):
                         #     pass        # FIXME, portage set SGID for these directories?
                         # elif showdn.startswith("/var/log/portage"):
@@ -379,21 +388,21 @@ class RootFs:
                         #     self._checkResult.append("\"%s\" should not have SGID bit set." % (showdn))
                         pass
                 else:
-                    if (m & stat.S_ISUID):
+                    if (st.st_mode & stat.S_ISUID):
                         bad = False
-                        if not (m & stat.S_IXUSR):
+                        if not (st.st_mode & stat.S_IXUSR):
                             bad = True
-                        if not (m & stat.S_IXGRP) and ((m & stat.S_IRGRP) or (m & stat.S_IWGRP)):
+                        if not (st.st_mode & stat.S_IXGRP) and ((st.st_mode & stat.S_IRGRP) or (st.st_mode & stat.S_IWGRP)):
                             bad = True
-                        if not (m & stat.S_IXOTH) and ((m & stat.S_IROTH) or (m & stat.S_IWOTH)):
+                        if not (st.st_mode & stat.S_IXOTH) and ((st.st_mode & stat.S_IROTH) or (st.st_mode & stat.S_IWOTH)):
                             bad = True
                         if bad:
                             self._checkResult.append("\"%s\" is not appropriate for SUID bit." % (fn))
-                    if (m & stat.S_ISGID):
+                    if (st.st_mode & stat.S_ISGID):
                         # FIXME
                         # self.infoPrinter.printError("File \"%s\" should not have SGID bit set." % (showfn))
                         pass
-                if (m & stat.S_ISVTX):
+                if (st.st_mode & stat.S_ISVTX):
                     self._checkResult.append("\"%s\" should not have sticky bit set." % (fn))
 
     def _getWildcardsLayout(self):
