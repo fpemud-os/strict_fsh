@@ -95,11 +95,12 @@ def wildcards_filter(names, wildcards):
 
 class RootFs:
 
-    """We comply with FHS (https://refspecs.linuxfoundation.org/fhs.shtml) but have some extra rules:
-         1. Fedora UsrMerge (https://fedoraproject.org/wiki/Features/UsrMove)
-         3. optional toolchain directories in /usr
-         4. optional swap file /var/swap.dat
-         5. no /var/games, why games have global data
+    """
+    We comply with FHS (https://refspecs.linuxfoundation.org/fhs.shtml) but have some extra rules:
+      * Fedora UsrMerge (https://fedoraproject.org/wiki/Features/UsrMove)
+      * optional toolchain directories in /usr
+      * optional swap file /var/swap.dat
+      * no /var/games, why games have global data
     """
 
     def __init__(self, dirPrefix="/"):
