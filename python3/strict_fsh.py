@@ -128,7 +128,7 @@ class RootFs:
             return self._getWildcardsUserCache(user)
         if wildcards_flag == WILDCARDS_USER_TRASH:
             return self._getWildcardsUserTrash(user)
-         if wildcards_flag == WILDCARDS_BOOT:
+        if wildcards_flag == WILDCARDS_BOOT:
             assert user is None
             return self._getWildcardsBoot()
         if wildcards_flag == WILDCARDS_RUNTIME:
