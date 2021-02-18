@@ -107,6 +107,7 @@ class RootFs:
     """
     We comply with FHS (https://refspecs.linuxfoundation.org/fhs.shtml) but have some extra rules:
       * Fedora UsrMerge (https://fedoraproject.org/wiki/Features/UsrMove)
+      * FreeDesktop Trash Specification (https://freedesktop.org/wiki/Specifications/trash-spec)
       * optional toolchain directories in /usr
       * optional swap file /var/swap.dat
       * optional /var/www
@@ -583,7 +584,7 @@ class RootFs:
         ret = []
         if user is None or user == "root":
             if self._exists("/root/.cache"):
-                ret.apped("+ /root/.cache/**")
+                ret.append("+ /root/.cache/**")
         for fn in self._glob("/home/*"):
             if user is None or user == os.path.basename(fn):
                 if self._exists("%s/.cache" % (fn)):
@@ -595,7 +596,7 @@ class RootFs:
         ret = []
         if user is None or user == "root":
             if self._exists("/root/.local/share/Trash"):
-                ret.apped("+ /root/.local/share/Trash/**")
+                ret.append("+ /root/.local/share/Trash/**")
         for fn in self._glob("/home/*"):
             if user is None or user == os.path.basename(fn):
                 if self._exists("%s/.local/share/Trash" % (fn)):
