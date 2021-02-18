@@ -48,8 +48,9 @@ WILDCARDS_SYSTEM_DATA = 3        # system data files
 WILDCARDS_SYSTEM_CACHE = 4       # system cache files, subset of system data files
 WILDCARDS_USER_DATA = 5          # user data files (including root user)
 WILDCARDS_USER_CACHE = 6         # user cache files, subset of user data files
-WILDCARDS_BOOT = 7               # boot files, subset of system files
-WILDCARDS_RUNTIME = 8            # runtime files
+WILDCARDS_USER_TRASH = 7         # trash files, subset of user data files
+WILDCARDS_BOOT = 8               # boot files, subset of system files
+WILDCARDS_RUNTIME = 9            # runtime files
 
 
 def merge_wildcards(wildcards1, wildcards2):
@@ -125,7 +126,9 @@ class RootFs:
             return self._getWildcardsUserData(user)
         if wildcards_flag == WILDCARDS_USER_CACHE:
             return self._getWildcardsUserCache(user)
-        if wildcards_flag == WILDCARDS_BOOT:
+        if wildcards_flag == WILDCARDS_USER_TRASH:
+            return self._getWildcardsUserTrash(user)
+         if wildcards_flag == WILDCARDS_BOOT:
             assert user is None
             return self._getWildcardsBoot()
         if wildcards_flag == WILDCARDS_RUNTIME:
@@ -563,9 +566,9 @@ class RootFs:
         if user is None or user == "root":
             ret.append("+ /root/**")                # "/root" belongs to FSH layout
         for fn in self._glob("/home/*"):
-            fuser = os.path.basename(fn)
-            if user is None or fuser != user:
+            if user is None or user == os.path.basename(fn):
                 ret.append("+ %s/***" % (fn))       # "/home/X" belongs to user data
+        assert len(ret) > 0
         return ret
 
     def _getWildcardsUserCache(self, user):
@@ -574,10 +577,22 @@ class RootFs:
             if self._exists("/root/.cache"):
                 ret.apped("+ /root/.cache/**")
         for fn in self._glob("/home/*"):
-            fuser = os.path.basename(fn)
-            if user is None or fuser == user:
+            if user is None or user == os.path.basename(fn):
                 if self._exists("%s/.cache" % (fn)):
                     ret.append("+ %s/.cache/**" % (fn))
+        assert len(ret) > 0
+        return ret
+
+    def _getWildcardsUserTrash(self, user):
+        ret = []
+        if user is None or user == "root":
+            if self._exists("/root/.local/share/Trash"):
+                ret.apped("+ /root/.local/share/Trash/**")
+        for fn in self._glob("/home/*"):
+            if user is None or user == os.path.basename(fn):
+                if self._exists("%s/.local/share/Trash" % (fn)):
+                    ret.append("+ %s/.local/share/Trash/*" % (fn))
+        assert len(ret) > 0
         return ret
 
     def _getWildcardsBoot(self):
