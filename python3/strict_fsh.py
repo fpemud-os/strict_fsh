@@ -600,7 +600,7 @@ class RootFs:
         for fn in self._glob("/home/*"):
             if user is None or user == os.path.basename(fn):
                 if self._exists("%s/.local/share/Trash" % (fn)):
-                    ret.append("+ %s/.local/share/Trash/*" % (fn))
+                    ret.append("+ %s/.local/share/Trash/**" % (fn))
         assert len(ret) > 0
         return ret
 
@@ -795,11 +795,11 @@ class _HelperWildcard:
     def check_patterns(wildcards):
         for w in wildcards:
             if not w.startswith("+ ") and not w.startswith("- "):
-                raise WildcardError("invalid w \"%s\"" % (w))
+                raise WildcardError("invalid wildcard \"%s\"" % (w))
             if len(w) < 3 or w[2] != '/':
-                raise WildcardError("invalid w \"%s\"" % (w))
+                raise WildcardError("invalid wildcard \"%s\"" % (w))
             if "*" in w and not w.endswith("/***") and not w.endswith("/**"):
-                raise WildcardError("invalid w \"%s\"" % (w))
+                raise WildcardError("invalid wildcard \"%s\"" % (w))
 
     @staticmethod
     def match_pattern(name, wildcard):
