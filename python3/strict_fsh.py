@@ -108,6 +108,7 @@ class RootFs:
     We comply with FHS (https://refspecs.linuxfoundation.org/fhs.shtml) but have some extra rules:
       * Fedora UsrMerge (https://fedoraproject.org/wiki/Features/UsrMove)
       * FreeDesktop Trash Specification (https://freedesktop.org/wiki/Specifications/trash-spec)
+      * /etc/hostname for hostname configuration
       * optional toolchain directories in /usr
       * optional swap file /var/swap.dat
       * optional /var/www
@@ -188,7 +189,11 @@ class RootFs:
         # /etc
         self._checkDir("/etc", 0o0755, "root", "root")
 
+        # /etc/hostname
+        self._checkFile("/etc/hostname",  0o0644, "root", "root")
+
         # shadow files in /etc
+        # FIXME: in fact they are not basic layout
         self._checkFile("/etc/passwd",  0o0644, "root", "root")
         self._checkFile("/etc/group",   0o0644, "root", "root")
         self._checkFile("/etc/shadow",  0o0640, "root", "root")
@@ -430,6 +435,7 @@ class RootFs:
             "+ /boot",
             "+ /dev",
             "+ /etc",
+            "+ /etc/hostname",
             "+ /etc/passwd",
             "+ /etc/group",
             "+ /etc/shadow",
