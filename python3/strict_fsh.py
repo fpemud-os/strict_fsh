@@ -438,17 +438,17 @@ class RootFs:
             "+ /etc/subgid",
         ]
         if self._exists("/etc/passwd-"):
-            ret.append("/etc/passwd-")
+            ret.append("+ /etc/passwd-")
         if self._exists("/etc/group-"):
-            ret.append("/etc/group-")
+            ret.append("+ /etc/group-")
         if self._exists("/etc/shadow-"):
-            ret.append("/etc/shadow-")
+            ret.append("+ /etc/shadow-")
         if self._exists("/etc/gshadow-"):
-            ret.append("/etc/gshadow-")
+            ret.append("+ /etc/gshadow-")
         if self._exists("/etc/subuid-"):
-            ret.append("/etc/subuid-")
+            ret.append("+ /etc/subuid-")
         if self._exists("/etc/subgid-"):
-            ret.append("/etc/subgid-")
+            ret.append("+ /etc/subgid-")
         ret += [
             "+ /home",
         ]
