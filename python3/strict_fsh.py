@@ -612,7 +612,7 @@ class RootFs:
 
     def _getWildcardsBoot(self):
         return [
-            "+ /boot/***"
+            "+ /boot/**",
             "+ /usr/lib/modules/***",
             "+ /usr/lib/firmware/***",
         ]
