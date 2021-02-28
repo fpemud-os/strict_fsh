@@ -483,8 +483,6 @@ class RootFs:
                 ret.append("+ /usr/local/sbin")
             if self._exists("/usr/local/share"):
                 ret.append("+ /usr/local/share")
-            if self._exists("/usr/local/src"):
-                ret.append("+ /usr/local/src")
         if True:
             ret.append("+ /usr/opt")
             if self._exists("/usr/opt/bin"):
