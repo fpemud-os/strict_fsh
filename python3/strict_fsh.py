@@ -111,8 +111,6 @@ class RootFs:
       * /etc/hostname for hostname configuration
       * optional toolchain directories in /usr
       * optional swap file /var/swap.dat
-      * optional /var/www
-      * no /var/games, why games have global data
     """
 
     def __init__(self, dirPrefix="/"):
@@ -327,6 +325,10 @@ class RootFs:
         self._checkDir("/var/empty", 0o0755, "root", "root")
         self._checkDirIsEmpty("/var/empty")
 
+        # /var/games
+        if self._exists("/var/games"):
+            self._checkDir("/var/games", 0o0755, "root", "root")
+
         # /var/lib
         if self._exists("/var/lib"):
             self._checkDir("/var/lib", 0o0755, "root", "root")
@@ -436,29 +438,7 @@ class RootFs:
             "+ /dev",
             "+ /etc",
             "+ /etc/hostname",
-            "+ /etc/passwd",
-            "+ /etc/group",
-            "+ /etc/shadow",
-            "+ /etc/gshadow",
-            "+ /etc/subuid",
-            "+ /etc/subgid",
-        ]
-        if self._exists("/etc/passwd-"):
-            ret.append("+ /etc/passwd-")
-        if self._exists("/etc/group-"):
-            ret.append("+ /etc/group-")
-        if self._exists("/etc/shadow-"):
-            ret.append("+ /etc/shadow-")
-        if self._exists("/etc/gshadow-"):
-            ret.append("+ /etc/gshadow-")
-        if self._exists("/etc/subuid-"):
-            ret.append("+ /etc/subuid-")
-        if self._exists("/etc/subgid-"):
-            ret.append("+ /etc/subgid-")
-        ret += [
             "+ /home",
-        ]
-        ret += [
             "+ /lib",             # symlink
             "+ /lib64",           # symlink
             "+ /mnt",
@@ -513,8 +493,6 @@ class RootFs:
             "+ /usr/sbin",
             "+ /usr/share",
         ]
-        if self._exists("/usr/src"):
-            ret.append("+ /usr/src")
         for fn in self._glob("/usr/*"):
             if _isToolChainName(os.path.basename(fn)):
                 ret.append("+ %s" % (fn))
@@ -537,14 +515,8 @@ class RootFs:
             ret.append("+ /var/log")
         ret += [
             "+ /var/run",         # symlink
-        ]
-        if self._exists("/var/spool"):
-            ret.append("+ /var/spool")
-        ret += [
             "+ /var/tmp",
         ]
-        if self._exists("/var/www"):
-            ret.append("+ /var/www")
         return ret
 
     def _getWildcardsSystem(self):
@@ -566,8 +538,6 @@ class RootFs:
             ret.append("+ /var/log/**")
         if self._exists("/var/swap.dat"):
             ret.append("+ /var/swap.dat")
-        if self._exists("/var/www"):
-            ret.append("+ /var/www/***")
         return ret
 
     def _getWildcardsSystemCache(self):
