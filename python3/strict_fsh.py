@@ -1009,19 +1009,18 @@ class _HelperMoveDir:
             fli = os.path.join(src, li)
             fri = os.path.join(dst, li)
 
+            r1 = (os.path.islink(fli) and os.path.realpath(fli) == os.path.abspath(fri))
+            r2 = (os.path.islink(fri) and os.path.realpath(fri) == os.path.abspath(fli))
+            if r1 or r2:
+                continue
+
             if not _isRealDir(fli):
-                if os.path.islink(fli) and os.path.realpath(fli) == os.path.abspath(fri):
-                    continue
-                else:
-                    ret.append((fli, "left-file"))
-                    continue
+                ret.append((fli, "left-file"))
+                continue
 
             if not _isRealDir(fri):
-                if os.path.islink(fri) and os.path.realpath(fri) == os.path.abspath(fli):
-                    continue
-                else:
-                    ret.append((fli, "right-file"))
-                    continue
+                ret.append((fli, "right-file"))
+                continue
 
             if not _hasSameStat(fli, fri):
                 ret.append((fli, "stat-not-same"))
