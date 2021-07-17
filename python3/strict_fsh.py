@@ -889,7 +889,7 @@ class _HelperPrefixedDirOp:
     def _checkUsrMergeSymlink(self, fn, target):
         assert os.path.isabs(fn)
         fullfn = os.path.join(self.p._dirPrefix, fn[1:])
-        fullTarget = os.paht.join(os.path.dirname(fullfn), target)
+        fullTarget = os.path.join(os.path.dirname(fullfn), target)
 
         if not _isRealDir(fullTarget):
             # no way to autofix
