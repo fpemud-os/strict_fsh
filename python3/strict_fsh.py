@@ -908,7 +908,6 @@ class _HelperPrefixedDirOp:
                 ret = _HelperMoveDir.compare_dir(fullfn, fullTarget)
                 if len(ret) == 0:
                     _HelperMoveDir.move_dir(fullfn, fullTarget)
-                    os.rmdir(fullfn)
                     os.symlink(target, fullfn)
                 else:
                     self.p._checkResult.append("Directory \"%s\" and \"%s\" has common files, no way to combine them." % (fn, target))
