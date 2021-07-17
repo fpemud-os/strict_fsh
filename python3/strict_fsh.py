@@ -1007,16 +1007,23 @@ class _HelperMoveDir:
                 continue
 
             fli = os.path.join(src, li)
-            if not _isRealDir(fli):
-                ret.append((fli, "left-file"))
-                continue
-
             fri = os.path.join(dst, li)
-            if not _isRealDir(fri):
-                ret.append((fli, "right-file"))
-                continue
 
-            if not _isStatEqual(os.stat(fli), os.stat(fri)):
+            if not _isRealDir(fli):
+                if os.path.islink(fli) and os.path.realpath(fli) == os.path.abspath(fri):
+                    continue
+                else:
+                    ret.append((fli, "left-file"))
+                    continue
+
+            if not _isRealDir(fri):
+                if os.path.islink(fri) and os.path.realpath(fri) == os.path.abspath(fli):
+                    continue
+                else:
+                    ret.append((fli, "right-file"))
+                    continue
+
+            if not _hasSameStat(fli, fri):
                 ret.append((fli, "stat-not-same"))
                 continue
 
@@ -1032,14 +1039,26 @@ class _HelperMoveDir:
         for li in left_list:
             fli = os.path.join(src, li)
             fri = os.path.join(dst, li)
+
             if li not in right_list:
                 os.rename(fli, fri)
+                continue
+
+            if os.path.islink(fli) and os.path.realpath(fli) == os.path.abspath(fri):
+                os.remove(fli)
+                continue
+
+            if os.path.islink(fri) and os.path.realpath(fri) == os.path.abspath(fli):
+                os.remove(fri)
+                os.rename(fli, fri)
+                continue
+
+            if _isRealDir(fli) and _isRealDir(fri) and _hasSameStat(fli, fri):
+                _HelperMoveDir.move_dir(fli, fri)
             else:
-                if _isRealDir(fli) and _isRealDir(fri) and _isStatEqual(os.stat(fli), os.stat(fri)):
-                    _HelperMoveDir.move_dir(fli, fri)
-                    os.rmdir(fli)
-                else:
-                    raise MoveDirError(fli)
+                raise MoveDirError(fli)
+
+        os.rmdir(src)
 
 
 def _isToolChainName(name):
@@ -1065,7 +1084,9 @@ def _isRealDir(path):
     return os.path.isdir(path) and not os.path.islink(path)
 
 
-def _isStatEqual(st1, st2):
+def _hasSameStat(path1, path2):
+    st1 = os.stat(path1)
+    st2 = os.stat(path2)
     if st1.st_mode != st2.st_mode:
         return False
     if st1.st_uid != st2.st_uid:
