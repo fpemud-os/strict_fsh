@@ -905,9 +905,9 @@ class _HelperPrefixedDirOp:
 
         if not os.path.islink(fullfn):
             if _isRealDir(fullfn):
-                ret = _HelperMoveDir.compare_dir(fullfn, fullTarget)
+                ret = _HelperUsrMerge.compare_dir(fullfn, fullTarget)
                 if len(ret) == 0:
-                    _HelperMoveDir.move_dir(fullfn, fullTarget)
+                    _HelperUsrMerge.move_dir(fullfn, fullTarget)
                     os.symlink(target, fullfn)
                 else:
                     self.p._checkResult.append("Directory \"%s\" and \"%s\" has common files, no way to combine them." % (fn, target))
@@ -993,7 +993,7 @@ class _HelperPrefixedDirOp:
                     self.p._checkResult.append("\"%s\" has invalid owner group." % (fn))
 
 
-class _HelperMoveDir:
+class _HelperUsrMerge:
 
     @staticmethod
     def compare_dir(src, dst):
@@ -1025,7 +1025,7 @@ class _HelperMoveDir:
                 ret.append((fli, "stat-not-same"))
                 continue
 
-            ret += _HelperMoveDir.compare_dir(fli, fri)
+            ret += _HelperUsrMerge.compare_dir(fli, fri)
 
         return ret
 
@@ -1052,7 +1052,7 @@ class _HelperMoveDir:
                 continue
 
             if _isRealDir(fli) and _isRealDir(fri) and _hasSameStat(fli, fri):
-                _HelperMoveDir.move_dir(fli, fri)
+                _HelperUsrMerge.move_dir(fli, fri)
             else:
                 raise MoveDirError(fli)
 
