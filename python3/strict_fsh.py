@@ -714,7 +714,7 @@ class PreMountRootFs:
             self._checkDirIsEmpty("/run")
 
             # /sbin
-            self._checkSymlink("/sbin", "usr/sbin")
+            self._checkUsrMergeSymlink("/sbin", "usr/sbin")
 
             # /sys
             self._checkDir("/sys")
@@ -1016,7 +1016,7 @@ class _HelperMoveDir:
                 ret.append((fli, "right-file"))
                 continue
 
-            if os.stat(fli) != os.stat(fri):
+            if not _isStatEqual(os.stat(fli), os.stat(fri)):
                 ret.append((fli, "stat-not-same"))
                 continue
 
@@ -1035,7 +1035,7 @@ class _HelperMoveDir:
             if li not in right_list:
                 os.rename(fli, fri)
             else:
-                if _isRealDir(fli) and _isRealDir(fri) and os.stat(fli) == os.stat(fri):
+                if _isRealDir(fli) and _isRealDir(fri) and _isStatEqual(os.stat(fli), os.stat(fri)):
                     _HelperMoveDir.move_dir(fli, fri)
                     os.rmdir(fli)
                 else:
@@ -1063,3 +1063,13 @@ def _pathAddSlash(path):
 
 def _isRealDir(path):
     return os.path.isdir(path) and not os.path.islink(path)
+
+
+def _isStatEqual(st1, st2):
+    if st1.st_mode != st2.st_mode:
+        return False
+    if st1.st_uid != st2.st_uid:
+        return False
+    if st1.st_gid != st2.st_gid:
+        return False
+    return True
