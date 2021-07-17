@@ -35,7 +35,6 @@ import pwd
 import grp
 import glob
 import stat
-import filecmp
 
 
 __author__ = "fpemud@sina.com (Fpemud)"
@@ -176,7 +175,7 @@ class RootFs:
         self._checkDir("/", 0o0755, "root", "root")
 
         # /bin
-        self._checkSymlink("/bin", "usr/bin")
+        self._checkUsrMergeSymlink("/bin", "usr/bin")
 
         # /boot
         self._checkDir("/boot", 0o0755, "root", "root")
@@ -217,10 +216,10 @@ class RootFs:
             self._checkDir(fn, 0o0700, os.path.basename(fn), os.path.basename(fn))
 
         # /lib
-        self._checkSymlink("/lib", "usr/lib")
+        self._checkUsrMergeSymlink("/lib", "usr/lib")
 
         # /lib64
-        self._checkSymlink("/lib64", "usr/lib64")
+        self._checkUsrMergeSymlink("/lib64", "usr/lib64")
 
         # /mnt
         self._checkDir("/mnt", 0o0755, "root", "root")
@@ -238,7 +237,7 @@ class RootFs:
         self._checkDir("/run", 0o0755, "root", "root")
 
         # /sbin
-        self._checkSymlink("/sbin", "usr/sbin")
+        self._checkUsrMergeSymlink("/sbin", "usr/sbin")
 
         # /sys
         self._checkDir("/sys", 0o0555, "root", "root")
@@ -664,7 +663,7 @@ class PreMountRootFs:
         self._record = set()
         try:
             # /bin
-            self._checkSymlink("/bin", "usr/bin")
+            self._checkUsrMergeSymlink("/bin", "usr/bin")
 
             # /boot
             self._checkDir("/boot")
@@ -687,10 +686,10 @@ class PreMountRootFs:
                 self._checkDirIsEmpty("/home")
 
             # /lib
-            self._checkSymlink("/lib", "usr/lib")
+            self._checkUsrMergeSymlink("/lib", "usr/lib")
 
             # /lib64
-            self._checkSymlink("/lib64", "usr/lib64")
+            self._checkUsrMergeSymlink("/lib64", "usr/lib64")
 
             # /mnt
             self._checkDir("/mnt")
@@ -760,6 +759,10 @@ class CheckError(Exception):
 
 
 class WildcardError(Exception):
+    pass
+
+
+class MoveDirError(Exception):
     pass
 
 
@@ -868,25 +871,60 @@ class _HelperPrefixedDirOp:
                 self.p._checkResult.append("\"%s\" does not exist." % (fn))
                 return
 
-        bValid = False
         if not os.path.islink(fullfn):
-            if os.path.isdir(fullfn):
-                fullTarget = os.path.join(self.p._dirPrefix, target)
-                if os.path.isdir(fullTarget):
-                    if self.p._bAutoFix:
-                        ret = filecmp.dircmp(fullfn, fullTarget)
-                        if len(ret.common) == 0 and len(ret.common_dirs) == 0:
-                            # bValid = True
-                            raise CheckError("\"%s\" is invalid, can autofix" % (fn))       # FIXME
-        elif os.readlink(fullfn) != target:
+            # no way to autofix
+            self.p._checkResult.append("\"%s\" is invalid." % (fn))
+            return
+
+        if os.readlink(fullfn) != target:
             if self.p._bAutoFix:
                 os.unlink(fullfn)
                 os.symlink(target, fullfn)
-                bValid = True
-        else:
-            bValid = True
-        if not bValid:
-            self.p._checkResult.append("\"%s\" is invalid." % (fn))
+            else:
+                self.p._checkResult.append("\"%s\" is invalid." % (fn))
+                return
+
+        self.p._record.add(fn)
+
+    def _checkUsrMergeSymlink(self, fn, target):
+        assert os.path.isabs(fn)
+        fullfn = os.path.join(self.p._dirPrefix, fn[1:])
+        fullTarget = os.paht.join(os.path.dirname(fullfn), target)
+
+        if not _isRealDir(fullTarget):
+            # no way to autofix
+            self.p._checkResult.append("\"%s\" is invalid." % (fullTarget))
+            return
+
+        if not os.path.exists(fullfn):
+            if self.p._bAutoFix:
+                os.symlink(target, fullfn)
+            else:
+                self.p._checkResult.append("\"%s\" does not exist." % (fn))
+                return
+
+        if not os.path.islink(fullfn):
+            if _isRealDir(fullfn):
+                ret = _HelperMoveDir.compare_dir(fullfn, fullTarget)
+                if len(ret) == 0:
+                    _HelperMoveDir.move_dir(fullfn, fullTarget)
+                    os.rmdir(fullfn)
+                    os.symlink(target, fullfn)
+                else:
+                    self.p._checkResult.append("Directory \"%s\" and \"%s\" has common files, no way to combine them." % (fn, target))
+                    return
+            else:
+                # no way to autofix
+                self.p._checkResult.append("\"%s\" is invalid." % (fullTarget))
+                return
+
+        if os.readlink(fullfn) != target:
+            if self.p._bAutoFix:
+                os.unlink(fullfn)
+                os.symlink(target, fullfn)
+            else:
+                self.p._checkResult.append("\"%s\" is invalid." % (fn))
+                return
 
         self.p._record.add(fn)
 
@@ -956,6 +994,54 @@ class _HelperPrefixedDirOp:
                     self.p._checkResult.append("\"%s\" has invalid owner group." % (fn))
 
 
+class _HelperMoveDir:
+
+    @staticmethod
+    def compare_dir(src, dst):
+        left_list = os.listdir(src)
+        right_list = os.listdir(dst)
+        ret = []
+
+        for li in left_list:
+            if li not in right_list:
+                continue
+
+            fli = os.path.join(src, li)
+            if not _isRealDir(fli):
+                ret.append((fli, "left-file"))
+                continue
+
+            fri = os.path.join(dst, li)
+            if not _isRealDir(fri):
+                ret.append((fli, "right-file"))
+                continue
+
+            if os.stat(fli) != os.stat(fri):
+                ret.append((fli, "stat-not-same"))
+                continue
+
+            ret += _HelperMoveDir.compare_dir(fli, fri)
+
+        return ret
+
+    @staticmethod
+    def move_dir(src, dst):
+        left_list = os.listdir(src)
+        right_list = os.listdir(dst)
+
+        for li in left_list:
+            fli = os.path.join(src, li)
+            fri = os.path.join(dst, li)
+            if li not in right_list:
+                os.rename(fli, fri)
+            else:
+                if _isRealDir(fli) and _isRealDir(fri) and os.stat(fli) == os.stat(fri):
+                    _HelperMoveDir.move_dir(fli, fri)
+                    os.rmdir(fli)
+                else:
+                    raise MoveDirError(fli)
+
+
 def _isToolChainName(name):
     # FIXME: how to find a complete list?
     if name == "i686-pc-linux-gnu":
@@ -973,3 +1059,7 @@ def _pathAddSlash(path):
         return path
     else:
         return path + "/"
+
+
+def _isRealDir(path):
+    return os.path.isdir(path) and not os.path.islink(path)
