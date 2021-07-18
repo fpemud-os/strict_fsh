@@ -904,7 +904,7 @@ class _HelperPrefixedDirOp:
 
     def _checkDevDirContent(self, devDir, nodeInfoList):
         assert self.__validPath(devDir)
-        assert all([not x[0].startwith("/") and not x[0].endswith("/") for x in nodeInfoList])
+        assert all([not x[0].startswith("/") and not x[0].endswith("/") for x in nodeInfoList])
 
         for nodeName, devType, major, minor, mode, owner, group in nodeInfoList:
             fn = os.path.join(devDir, nodeName)
