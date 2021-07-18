@@ -811,19 +811,27 @@ class _HelperPrefixedDirOp:
         self.p = parent
 
     def _exists(self, fn):
-        assert os.path.isabs(fn)
+        assert os.path.isabs(fn) and not fn.endswith("/")
 
         return os.path.exists(self.__fn2fullfn(fn))
 
     def _glob(self, fn, recursive=False):
-        assert os.path.isabs(fn)
+        assert os.path.isabs(fn) and not fn.endswith("/")
+        assert ("*" in fn) or ("?" in fn)
 
         ret = glob.glob(self.__fn2fullfn(fn), recursive=recursive)
         ret = [self.__fullfn2fn(x) for x in ret]
+
+        # glob.glob() sucks, we do some optimization here:
+        # 1. glob.glob("x/**", recursive=True) returns a list which contains "x/", we remove it
+        # 2. glob.glob("x/**", recursive=True) returns directory name with trailing "/", we remove the trailing "/"
+        ret.remove(_pathAddSlash(fn))
+        ret = [x.rstrip("/") for x in ret]
+
         return ret
 
     def _checkDir(self, fn, mode=None, owner=None, group=None):
-        assert os.path.isabs(fn)
+        assert os.path.isabs(fn) and not fn.endswith("/")
 
         fullfn = self.__fn2fullfn(fn)
 
@@ -845,7 +853,7 @@ class _HelperPrefixedDirOp:
         self.p._record.add(fn)
 
     def _checkFile(self, fn, mode=None, owner=None, group=None):
-        assert os.path.isabs(fn)
+        assert os.path.isabs(fn) and not fn.endswith("/")
 
         fullfn = self.__fn2fullfn(fn)
 
@@ -865,7 +873,7 @@ class _HelperPrefixedDirOp:
         self.p._record.add(fn)
 
     def _checkSymlink(self, fn, target):
-        assert os.path.isabs(fn)
+        assert os.path.isabs(fn) and not fn.endswith("/")
 
         fullfn = self.__fn2fullfn(fn)
 
@@ -891,8 +899,11 @@ class _HelperPrefixedDirOp:
 
         self.p._record.add(fn)
 
-    def _checkDevDirContent(self, devDir, nodeNameList):
-        for nodeName, devType, major, minor, mode, owner, group in nodeNameList:
+    def _checkDevDirContent(self, devDir, nodeInfoList):
+        assert os.path.isabs(devDir) and not devDir.endswith("/")
+        assert all([not x[0].startwith("/") and not x[0].endswith("/") for x in nodeInfoList])
+
+        for nodeName, devType, major, minor, mode, owner, group in nodeInfoList:
             fn = os.path.join(devDir, nodeName)
             fullfn = self.__fn2fullfn(fn)
 
@@ -939,14 +950,16 @@ class _HelperPrefixedDirOp:
             self.__checkMetadata(fn, fullfn, mode, owner, group)
 
         # redundant files
-        fnList = [os.path.join(devDir, x[0]) for x in nodeNameList]
-        for fn in reversed(self._glob(os.path.join(devDir, "*", "**"), recursive=True)):
+        fnList = [os.path.join(devDir, x[0]) for x in nodeInfoList]
+        for fn in reversed(self._glob(os.path.join(devDir, "**"), recursive=True)):
             if fn not in fnList:
                 if self.p._bAutoFix:
                     fullfn = self.__fn2fullfn(fn)
                     if os.path.islink(fullfn) or not os.path.isdir(fullfn):
+                        # remove redundant file
                         os.remove(fullfn)
                     else:
+                        # remove redundant directory
                         try:
                             os.rmdir(fullfn)
                         except OSError as e:
@@ -959,11 +972,11 @@ class _HelperPrefixedDirOp:
                     self.p._checkResult.append("\"%s\" should not exist." % (fn))
 
         # record files
-        for fn in self._glob(os.path.join(devDir, "*", "**"), recursive=True):
+        for fn in self._glob(os.path.join(devDir, "**"), recursive=True):
             self.p._record.add(fn)
 
     def _checkUsrMergeSymlink(self, fn, target):
-        assert os.path.isabs(fn)
+        assert os.path.isabs(fn) and not fn.endswith("/")
 
         fullfn = self.__fn2fullfn(fn)
         fullTarget = os.path.join(os.path.dirname(fullfn), target)
@@ -1005,7 +1018,7 @@ class _HelperPrefixedDirOp:
         self.p._record.add(fn)
 
     def _checkDirIsEmpty(self, fn):
-        assert os.path.isabs(fn)
+        assert os.path.isabs(fn) and not fn.endswith("/")
 
         bFound = False
         for fn2 in os.listdir(self.__fn2fullfn(fn)):
@@ -1017,12 +1030,12 @@ class _HelperPrefixedDirOp:
             self.p._checkResult.append("\"%s\" is not empty." % (fn))
 
     def _checkMetadata(self, fn, mode, owner, group):
-        assert os.path.isabs(fn)
+        assert os.path.isabs(fn) and not fn.endswith("/")
 
         self.__checkMetadata(fn, self.__fn2fullfn(fn), mode, owner, group)
 
     def _checkNoRedundantEntry(self, fn, bIgnoreDotKeepFiles=False):
-        assert os.path.isabs(fn)
+        assert os.path.isabs(fn) and not fn.endswith("/")
 
         fullfn = self.__fn2fullfn(fn)
         for fn2 in os.listdir(fullfn):
