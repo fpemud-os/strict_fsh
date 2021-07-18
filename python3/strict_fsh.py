@@ -949,7 +949,7 @@ class _HelperPrefixedDirOp:
         # redundant files
         keepList = [os.path.join(devDir, x[0]) for x in nodeInfoList]
         for fn in reversed(self._fullListDir(devDir, recursive=True)):
-            if fn in keepList:
+            if fn.startswith(".") or fn in keepList:
                 continue
 
             if self.p._bAutoFix:
