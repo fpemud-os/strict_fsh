@@ -940,10 +940,21 @@ class _HelperPrefixedDirOp:
 
         # redundant files
         fnList = [os.path.join(devDir, x[0]) for x in nodeNameList]
-        for fn in self._glob(os.path.join(devDir, "*", "**"), recursive=True):
+        for fn in reversed(self._glob(os.path.join(devDir, "*", "**"), recursive=True)):
             if fn not in fnList:
                 if self.p._bAutoFix:
-                    os.remove(self.__fn2fullfn(fn))
+                    fullfn = self.__fn2fullfn(fn)
+                    if os.path.islink(fullfn) or not os.path.isdir(fullfn):
+                        os.remove(fullfn)
+                    else:
+                        try:
+                            os.rmdir(fullfn)
+                        except OSError as e:
+                            if e.errno == 39:
+                                # OSError: [Errno 39] Directory not empty
+                                self.p._checkResult.append("Directory \"%s\" should not exist but has valid file(s) in it." % (fn))
+                            else:
+                                raise
                 else:
                     self.p._checkResult.append("\"%s\" should not exist." % (fn))
 
