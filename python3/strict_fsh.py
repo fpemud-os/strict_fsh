@@ -929,6 +929,10 @@ class _HelperPrefixedDirOp:
                 else:
                     self.p._checkResult.append("\"%s\" should not exist." % (fn))
 
+        # record files
+        for fn in self._glob(os.path.join(devDir, "**"), rescursive=True):
+            self.p._record.add(fn)
+
     def _checkUsrMergeSymlink(self, fn, target):
         assert os.path.isabs(fn)
         fullfn = os.path.join(self.p._dirPrefix, fn[1:])
