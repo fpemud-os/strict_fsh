@@ -674,7 +674,7 @@ class PreMountRootFs:
 
             # /dev
             self._checkDir("/dev")
-            self._checkDevDirContent([
+            self._checkDevDirContent("/dev", [
                 ("console", 5, 1, 0o0600, "root", "root"),
                 ("null",    1, 3, 0o0666, "root", "root"),
             ])
