@@ -33,7 +33,6 @@ strict_fsh
 import os
 import pwd
 import grp
-import glob
 import stat
 
 
@@ -214,7 +213,7 @@ class RootFs:
 
         # /home
         self._checkDir("/home", 0o0755, "root", "root")
-        for fn in self._myGlob("/home/*"):
+        for fn in self._fullListDir("/home"):
             self._checkDir(fn, 0o0700, os.path.basename(fn), os.path.basename(fn))
 
         # /lib
@@ -307,7 +306,7 @@ class RootFs:
             self._checkDir("/usr/src", 0o0755, "root", "root")
 
         # toolchain directories in /usr
-        for fn in self._myGlob("/usr/*"):
+        for fn in self._fullListDir("/usr"):
             if _isToolChainName(os.path.basename(fn)):
                 self._checkDir(fn, 0o0755, "root", "root")
 
@@ -492,7 +491,7 @@ class RootFs:
             "+ /usr/sbin",
             "+ /usr/share",
         ]
-        for fn in self._myGlob("/usr/*"):
+        for fn in self._fullListDir("/usr"):
             if _isToolChainName(os.path.basename(fn)):
                 ret.append("+ %s" % (fn))
         ret += [
@@ -549,7 +548,7 @@ class RootFs:
         ret = []
         if user is None or user == "root":
             ret.append("+ /root/**")                # "/root" belongs to FSH layout
-        for fn in self._myGlob("/home/*"):
+        for fn in self._fullListDir("/home"):
             if user is None or user == os.path.basename(fn):
                 ret.append("+ %s/***" % (fn))       # "/home/X" belongs to user data
         assert len(ret) > 0
@@ -560,7 +559,7 @@ class RootFs:
         if user is None or user == "root":
             if self._exists("/root/.cache"):
                 ret.append("+ /root/.cache/**")
-        for fn in self._myGlob("/home/*"):
+        for fn in self._fullListDir("/home"):
             if user is None or user == os.path.basename(fn):
                 if self._exists("%s/.cache" % (fn)):
                     ret.append("+ %s/.cache/**" % (fn))
@@ -572,7 +571,7 @@ class RootFs:
         if user is None or user == "root":
             if self._exists("/root/.local/share/Trash"):
                 ret.append("+ /root/.local/share/Trash/**")
-        for fn in self._myGlob("/home/*"):
+        for fn in self._fullListDir("/home"):
             if user is None or user == os.path.basename(fn):
                 if self._exists("%s/.local/share/Trash" % (fn)):
                     ret.append("+ %s/.local/share/Trash/**" % (fn))
@@ -815,22 +814,17 @@ class _HelperPrefixedDirOp:
 
         return os.path.exists(self.__fn2fullfn(fn))
 
-    def _myGlob(self, fn, recursive=False):
+    def _fullListDir(self, fn, recursive=False):
         assert self.__validPath(fn)
-        assert ("*" in fn) or ("?" in fn)
 
-        ret = glob.glob(self.__fn2fullfn(fn), recursive=recursive)
-        ret = [self.__fullfn2fn(x) for x in ret]
-
-        # glob.glob() sucks, we do some optimization here:
-        # 1. glob.glob("x/**", recursive=True) returns a list which contains "x/", we remove it
-        # 2. glob.glob("x/**", recursive=True) returns directory name with trailing "/", we remove the trailing "/"
-        try:
-            ret.remove(_pathAddSlash(fn))
-        except ValueError:
-            pass
-        ret = [x.rstrip("/") for x in ret]
-
+        ret = []
+        for i in os.listdir(self.__fn2fullfn(fn)):
+            ifn = os.path.join(fn, i)
+            ret.append(ifn)
+            if recursive:
+                fullifn = self.__fn2fullfn(ifn)
+                if not os.path.islink(fullifn) and os.path.isdir(fullifn):
+                    ret += self._fullListDir(ifn, True)
         return ret
 
     def _checkDir(self, fn, mode=None, owner=None, group=None):
@@ -954,7 +948,7 @@ class _HelperPrefixedDirOp:
 
         # redundant files
         keepList = [os.path.join(devDir, x[0]) for x in nodeInfoList]
-        for fn in reversed(self._myGlob(os.path.join(devDir, "**"), recursive=True)):
+        for fn in reversed(self._fullListDir(devDir, recursive=True)):
             if fn in keepList:
                 continue
 
@@ -978,7 +972,7 @@ class _HelperPrefixedDirOp:
                 self.p._checkResult.append("\"%s\" should not exist." % (fn))
 
         # record files
-        for fn in self._myGlob(os.path.join(devDir, "**"), recursive=True):
+        for fn in self._fullListDir(devDir, recursive=True):
             self.p._record.add(fn)
 
     def _checkUsrMergeSymlink(self, fn, target):
