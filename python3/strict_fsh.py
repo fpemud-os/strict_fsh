@@ -825,7 +825,10 @@ class _HelperPrefixedDirOp:
         # glob.glob() sucks, we do some optimization here:
         # 1. glob.glob("x/**", recursive=True) returns a list which contains "x/", we remove it
         # 2. glob.glob("x/**", recursive=True) returns directory name with trailing "/", we remove the trailing "/"
-        ret.remove(_pathAddSlash(fn))
+        try:
+            ret.remove(_pathAddSlash(fn))
+        except ValueError:
+            pass
         ret = [x.rstrip("/") for x in ret]
 
         return ret
