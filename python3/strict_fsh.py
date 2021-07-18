@@ -816,11 +816,11 @@ class _HelperPrefixedDirOp:
 
         return os.path.exists(fullfn)
 
-    def _glob(self, fn, resursive=False):
+    def _glob(self, fn, recursive=False):
         assert os.path.isabs(fn)
         fullfn = os.path.join(self.p._dirPrefix, fn[1:])
 
-        ret = glob.glob(fullfn, resursive=resursive)
+        ret = glob.glob(fullfn, recursive=recursive)
         ret = ["/" + x[len(self.p._dirPrefix):] for x in ret]
         return ret
 
