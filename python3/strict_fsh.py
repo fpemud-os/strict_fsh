@@ -897,24 +897,28 @@ class _HelperPrefixedDirOp:
 
             # check file existence
             if not os.path.exists(fullfn):
-                if self.p._bAutoFix:
-                    os.mknod(fullfn, mode, os.makedev(major, minor))
-                    os.chmod(fullfn, mode)
-                else:
-                    self.p._checkResult.append("\"%s\" does not exist." % (fn))
-                    continue
+                # if self.p._bAutoFix:
+                #     os.mknod(fullfn, mode, os.makedev(major, minor))
+                #     os.chmod(fullfn, mode)
+                # else:
+                #     self.p._checkResult.append("\"%s\" does not exist." % (fn))
+                #     continue
+                self.p._checkResult.append("\"%s\" does not exist." % (fn))
+                continue
 
             # check major and minor
-            xMajor = os.major(os.stat(fullfn).st_dev)
-            xMinor = os.minor(os.stat(fullfn).st_dev)
+            xMajor = os.major(os.stat(fullfn).st_rdev)
+            xMinor = os.minor(os.stat(fullfn).st_rdev)
             if xMajor != major or xMinor != minor:
-                if self.p._bAutoFix:
-                    os.remove(fullfn)
-                    os.mknod(fullfn, mode, os.makedev(major, minor))
-                    os.chmod(fullfn, mode)
-                else:
-                    self.p._checkResult.append("\"%s\" has invalid major and minor number." % (fn))
-                    continue
+                # if self.p._bAutoFix:
+                #     os.remove(fullfn)
+                #     os.mknod(fullfn, mode, os.makedev(major, minor))
+                #     os.chmod(fullfn, mode)
+                # else:
+                #     self.p._checkResult.append("\"%s\" has invalid major and minor number." % (fn))
+                #     continue
+                self.p._checkResult.append("\"%s\" has invalid major and minor number." % (fn))
+                continue
 
             # check mode, owner and group
             self.__checkMetadata(fn, fullfn, mode, owner, group)
