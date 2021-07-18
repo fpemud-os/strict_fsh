@@ -893,7 +893,7 @@ class _HelperPrefixedDirOp:
     def _checkDevDirContent(self, devDir, nodeNameList):
         for nodeName, devType, major, minor, mode, owner, group in nodeNameList:
             fn = os.path.join(devDir, nodeName)
-            fullfn = os.path.join(self.p._dirPrefix, devDir[1:], nodeName)
+            fullfn = os.path.join(self.p._dirPrefix, fn[1:])
 
             # check file existence
             if not os.path.exists(fullfn):
@@ -939,16 +939,16 @@ class _HelperPrefixedDirOp:
 
         # redundant files
         fnList = [os.path.join(devDir, x[0]) for x in nodeNameList]
-        for fn in self._glob(os.path.join(devDir, "**"), recursive=True):
+        for fn in self._glob(os.path.join(devDir, "*", "**"), recursive=True):
+            fullfn = os.path.join(self.p._dirPrefix, fn[1:])
             if fn not in fnList:
                 if self.p._bAutoFix:
-                    fullfn = os.path.join(self.p._dirPrefix, fn[1:])
                     os.remove(fullfn)
                 else:
                     self.p._checkResult.append("\"%s\" should not exist." % (fn))
 
         # record files
-        for fn in self._glob(os.path.join(devDir, "**"), recursive=True):
+        for fn in self._glob(os.path.join(devDir, "*", "**"), recursive=True):
             self.p._record.add(fn)
 
     def _checkUsrMergeSymlink(self, fn, target):
