@@ -675,8 +675,8 @@ class PreMountRootFs:
             # /dev
             self._checkDir("/dev")
             self._checkDevDirContent("/dev", [
-                ("console", 5, 1, 0o0600, "root", "root"),
-                ("null",    1, 3, 0o0666, "root", "root"),
+                ("console", "c", 5, 1, 0o0600, "root", "root"),
+                ("null",    "c", 1, 3, 0o0666, "root", "root"),
             ])
 
             # /etc
@@ -891,34 +891,48 @@ class _HelperPrefixedDirOp:
         self.p._record.add(fn)
 
     def _checkDevDirContent(self, devDir, nodeNameList):
-        for nodeName, major, minor, mode, owner, group in nodeNameList:
+        for nodeName, devType, major, minor, mode, owner, group in nodeNameList:
             fn = os.path.join(devDir, nodeName)
             fullfn = os.path.join(self.p._dirPrefix, devDir[1:], nodeName)
 
             # check file existence
             if not os.path.exists(fullfn):
-                # if self.p._bAutoFix:
-                #     os.mknod(fullfn, mode, os.makedev(major, minor))
-                #     os.chmod(fullfn, mode)
-                # else:
-                #     self.p._checkResult.append("\"%s\" does not exist." % (fn))
-                #     continue
-                self.p._checkResult.append("\"%s\" does not exist." % (fn))
-                continue
+                if self.p._bAutoFix:
+                    _makeDeviceNodeFile(fullfn, devType, major, minor, mode, owner, group)
+                else:
+                    self.p._checkResult.append("\"%s\" does not exist." % (fn))
+                    continue
+
+            s = os.stat(fullfn)
+
+            # check type
+            if devType == "b":
+                if not stat.S_ISBLK(s.st_mode):
+                    if self.p._bAutoFix:
+                        os.remove(fullfn)
+                        _makeDeviceNodeFile(fullfn, devType, major, minor, mode, owner, group)
+                    else:
+                        self.p._checkResult.append("\"%s\" is not a block special device file." % (fn))
+                        continue
+            elif devType == "c":
+                if not stat.S_ISCHR(s.st_mode):
+                    if self.p._bAutoFix:
+                        os.remove(fullfn)
+                        _makeDeviceNodeFile(fullfn, devType, major, minor, mode, owner, group)
+                    else:
+                        self.p._checkResult.append("\"%s\" is not a character special device file." % (fn))
+                        continue
+            else:
+                assert False
 
             # check major and minor
-            xMajor = os.major(os.stat(fullfn).st_rdev)
-            xMinor = os.minor(os.stat(fullfn).st_rdev)
-            if xMajor != major or xMinor != minor:
-                # if self.p._bAutoFix:
-                #     os.remove(fullfn)
-                #     os.mknod(fullfn, mode, os.makedev(major, minor))
-                #     os.chmod(fullfn, mode)
-                # else:
-                #     self.p._checkResult.append("\"%s\" has invalid major and minor number." % (fn))
-                #     continue
-                self.p._checkResult.append("\"%s\" has invalid major and minor number." % (fn))
-                continue
+            if os.major(s.st_rdev) != major or os.minor(s.st_rdev) != minor:
+                if self.p._bAutoFix:
+                    os.remove(fullfn)
+                    _makeDeviceNodeFile(fullfn, devType, major, minor, mode, owner, group)
+                else:
+                    self.p._checkResult.append("\"%s\" has invalid major and minor number." % (fn))
+                    continue
 
             # check mode, owner and group
             self.__checkMetadata(fn, fullfn, mode, owner, group)
@@ -1127,3 +1141,17 @@ def _hasSameStat(path1, path2):
     if st1.st_gid != st2.st_gid:
         return False
     return True
+
+
+def _makeDeviceNodeFile(path, devType, major, minor, mode, owner, group):
+    if devType == "b":
+        flag = stat.S_IFBLK
+    elif devType == "c":
+        flag = stat.S_IFCHR
+    else:
+        assert False
+    os.mknod(path, flag | mode, os.makedev(major, minor))
+
+    ownerId = pwd.getpwnam(owner).pw_uid
+    groupId = grp.getgrnam(group).gr_gid
+    os.chown(path, ownerId, groupId)
