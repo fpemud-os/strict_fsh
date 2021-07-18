@@ -812,21 +812,20 @@ class _HelperPrefixedDirOp:
 
     def _exists(self, fn):
         assert os.path.isabs(fn)
-        fullfn = os.path.join(self.p._dirPrefix, fn[1:])
 
-        return os.path.exists(fullfn)
+        return os.path.exists(self.__fn2fullfn(fn))
 
     def _glob(self, fn, recursive=False):
         assert os.path.isabs(fn)
-        fullfn = os.path.join(self.p._dirPrefix, fn[1:])
 
-        ret = glob.glob(fullfn, recursive=recursive)
-        ret = ["/" + x[len(self.p._dirPrefix):] for x in ret]
+        ret = glob.glob(self.__fn2fullfn(fn), recursive=recursive)
+        ret = [self.__fullfn2fn(x) for x in ret]
         return ret
 
     def _checkDir(self, fn, mode=None, owner=None, group=None):
         assert os.path.isabs(fn)
-        fullfn = os.path.join(self.p._dirPrefix, fn[1:])
+
+        fullfn = self.__fn2fullfn(fn)
 
         if not os.path.exists(fullfn):
             if self.p._bAutoFix:
@@ -847,7 +846,8 @@ class _HelperPrefixedDirOp:
 
     def _checkFile(self, fn, mode=None, owner=None, group=None):
         assert os.path.isabs(fn)
-        fullfn = os.path.join(self.p._dirPrefix, fn[1:])
+
+        fullfn = self.__fn2fullfn(fn)
 
         if not os.path.exists(fullfn):
             # no way to autofix
@@ -866,7 +866,8 @@ class _HelperPrefixedDirOp:
 
     def _checkSymlink(self, fn, target):
         assert os.path.isabs(fn)
-        fullfn = os.path.join(self.p._dirPrefix, fn[1:])
+
+        fullfn = self.__fn2fullfn(fn)
 
         if not os.path.exists(fullfn):
             if self.p._bAutoFix:
@@ -893,7 +894,7 @@ class _HelperPrefixedDirOp:
     def _checkDevDirContent(self, devDir, nodeNameList):
         for nodeName, devType, major, minor, mode, owner, group in nodeNameList:
             fn = os.path.join(devDir, nodeName)
-            fullfn = os.path.join(self.p._dirPrefix, fn[1:])
+            fullfn = self.__fn2fullfn(fn)
 
             # check file existence
             if not os.path.exists(fullfn):
@@ -940,10 +941,9 @@ class _HelperPrefixedDirOp:
         # redundant files
         fnList = [os.path.join(devDir, x[0]) for x in nodeNameList]
         for fn in self._glob(os.path.join(devDir, "*", "**"), recursive=True):
-            fullfn = os.path.join(self.p._dirPrefix, fn[1:])
             if fn not in fnList:
                 if self.p._bAutoFix:
-                    os.remove(fullfn)
+                    os.remove(self.__fn2fullfn(fn))
                 else:
                     self.p._checkResult.append("\"%s\" should not exist." % (fn))
 
@@ -953,7 +953,8 @@ class _HelperPrefixedDirOp:
 
     def _checkUsrMergeSymlink(self, fn, target):
         assert os.path.isabs(fn)
-        fullfn = os.path.join(self.p._dirPrefix, fn[1:])
+
+        fullfn = self.__fn2fullfn(fn)
         fullTarget = os.path.join(os.path.dirname(fullfn), target)
 
         if not _isRealDir(fullTarget):
@@ -994,9 +995,9 @@ class _HelperPrefixedDirOp:
 
     def _checkDirIsEmpty(self, fn):
         assert os.path.isabs(fn)
-        fullfn = os.path.join(self.p._dirPrefix, fn[1:])
+
         bFound = False
-        for fn2 in os.listdir(fullfn):
+        for fn2 in os.listdir(self.__fn2fullfn(fn)):
             if not fn2.startswith(".keep"):
                 bFound = True
                 break
@@ -1006,12 +1007,13 @@ class _HelperPrefixedDirOp:
 
     def _checkMetadata(self, fn, mode, owner, group):
         assert os.path.isabs(fn)
-        fullfn = os.path.join(self.p._dirPrefix, fn[1:])
-        self.__checkMetadata(fn, fullfn, mode, owner, group)
+
+        self.__checkMetadata(fn, self.__fn2fullfn(fn), mode, owner, group)
 
     def _checkNoRedundantEntry(self, fn, bIgnoreDotKeepFiles=False):
         assert os.path.isabs(fn)
-        fullfn = os.path.join(self.p._dirPrefix, fn[1:])
+
+        fullfn = self.__fn2fullfn(fn)
         for fn2 in os.listdir(fullfn):
             if bIgnoreDotKeepFiles and fn2.startswith(".keep"):
                 continue
@@ -1040,6 +1042,13 @@ class _HelperPrefixedDirOp:
                     os.chown(fullfn, s.st_uid, groupId)
                 else:
                     self.p._checkResult.append("\"%s\" has invalid owner group." % (fn))
+
+    def __fn2fullfn(self, fn):
+        return os.path.join(self.p._dirPrefix, fn[1:])
+
+    def __fullfn2fn(self, fullfn):
+        t = _pathAddSlash(self.p._dirPrefix)
+        return "/" + fullfn[len(t):]
 
 
 class _HelperUsrMerge:
