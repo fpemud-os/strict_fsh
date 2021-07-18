@@ -674,8 +674,10 @@ class PreMountRootFs:
 
             # /dev
             self._checkDir("/dev")
-            self._checkDevNode("/dev/console", 5, 1, 0o0600, "root", "root")
-            self._checkDevNode("/dev/null",    1, 3, 0o0666, "root", "root")
+            self._checkDevDirContent([
+                ("console", 5, 1, 0o0600, "root", "root"),
+                ("null",    1, 3, 0o0666, "root", "root"),
+            ])
 
             # /etc
             self._checkDir("/etc")
@@ -814,11 +816,11 @@ class _HelperPrefixedDirOp:
 
         return os.path.exists(fullfn)
 
-    def _glob(self, fn):
+    def _glob(self, fn, resursive=False):
         assert os.path.isabs(fn)
         fullfn = os.path.join(self.p._dirPrefix, fn[1:])
 
-        ret = glob.glob(fullfn)
+        ret = glob.glob(fullfn, resursive=resursive)
         ret = ["/" + x[len(self.p._dirPrefix):] for x in ret]
         return ret
 
@@ -888,6 +890,45 @@ class _HelperPrefixedDirOp:
 
         self.p._record.add(fn)
 
+    def _checkDevDirContent(self, devDir, nodeNameList):
+        for nodeName, major, minor, mode, owner, group in nodeNameList:
+            fn = os.path.join(devDir, nodeName)
+            fullfn = os.path.join(self.p._dirPrefix, devDir[1:], nodeName)
+
+            # check file existence
+            if not os.path.exists(fullfn):
+                if self.p._bAutoFix:
+                    os.mknod(fullfn, mode, os.makedev(major, minor))
+                    os.chmod(fullfn, mode)
+                else:
+                    self.p._checkResult.append("\"%s\" does not exist." % (fn))
+                    continue
+
+            # check major and minor
+            xMajor = os.major(os.stat(fullfn).st_dev)
+            xMinor = os.minor(os.stat(fullfn).st_dev)
+            if xMajor != major or xMinor != minor:
+                if self.p._bAutoFix:
+                    os.remove(fullfn)
+                    os.mknod(fullfn, mode, os.makedev(major, minor))
+                    os.chmod(fullfn, mode)
+                else:
+                    self.p._checkResult.append("\"%s\" has invalid major and minor number." % (fn))
+                    continue
+
+            # check mode, owner and group
+            self.__checkMetadata(fn, fullfn, mode, owner, group)
+
+        # redundant files
+        fnList = [os.path.join(devDir, x[0]) for x in nodeNameList]
+        for fn in self._glob(os.path.join(devDir, "**"), rescursive=True):
+            if fn not in fnList:
+                if self.p._bAutoFix:
+                    fullfn = os.path.join(self.p._dirPrefix, fn[1:])
+                    os.remove(fullfn)
+                else:
+                    self.p._checkResult.append("\"%s\" should not exist." % (fn))
+
     def _checkUsrMergeSymlink(self, fn, target):
         assert os.path.isabs(fn)
         fullfn = os.path.join(self.p._dirPrefix, fn[1:])
@@ -926,22 +967,6 @@ class _HelperPrefixedDirOp:
             else:
                 self.p._checkResult.append("\"%s\" is invalid." % (fn))
                 return
-
-        self.p._record.add(fn)
-
-    def _checkDevNode(self, fn, major, minor, mode=None, owner=None, group=None):
-        assert os.path.isabs(fn)
-        fullfn = os.path.join(self.p._dirPrefix, fn[1:])
-
-        if not os.path.exists(fullfn):
-            # FIXME: autofix
-            self.p._checkResult.append("\"%s\" does not exist." % (fn))
-            return
-
-        # FIXME: check major, minor
-
-        if mode is not None:
-            self.__checkMetadata(fn, fullfn, mode, owner, group)
 
         self.p._record.add(fn)
 
