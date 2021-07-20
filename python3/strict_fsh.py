@@ -188,29 +188,6 @@ class RootFs:
         # /etc/hostname
         self._checkFile("/etc/hostname",  0o0644, "root", "root")
 
-        # shadow files in /etc
-        # FIXME: in fact they are not basic layout
-        self._checkFile("/etc/passwd",  0o0644, "root", "root")
-        self._checkFile("/etc/group",   0o0644, "root", "root")
-        if self._exists("/etc/shadow"):
-            self._checkFile("/etc/shadow",  0o0640, "root", "root")
-        if self._exists("/etc/gshadow"):
-            self._checkFile("/etc/gshadow", 0o0640, "root", "root")
-        self._checkFile("/etc/subuid",  0o0644, "root", "root")
-        self._checkFile("/etc/subgid",  0o0644, "root", "root")
-        if self._exists("/etc/passwd-"):
-            self._checkFile("/etc/passwd-",  0o0644, "root", "root")
-        if self._exists("/etc/group-"):
-            self._checkFile("/etc/group-",   0o0644, "root", "root")
-        if self._exists("/etc/shadow-"):
-            self._checkFile("/etc/shadow-",  0o0640, "root", "root")
-        if self._exists("/etc/gshadow-"):
-            self._checkFile("/etc/gshadow-", 0o0640, "root", "root")
-        if self._exists("/etc/subuid-"):
-            self._checkFile("/etc/subuid-",  0o0644, "root", "root")
-        if self._exists("/etc/subgid-"):
-            self._checkFile("/etc/subgid-",  0o0644, "root", "root")
-
         # /home
         self._checkDir("/home", 0o0755, "root", "root")
         for fn in self._fullListDir("/home"):
