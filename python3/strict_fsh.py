@@ -215,6 +215,12 @@ class RootFs:
 
         # /run
         self._checkDir("/run", 0o0755, "root", "root")
+        if True:
+            self._checkDir("/run/lock", 0o0755, "root", "root")
+            if os.path.exists("/run/user"):
+                self._checkDir("/run/user", 0o0755, "root", "root")
+                for fn in self._fullListDir("/run/user"):
+                    self._checkDir(fn, 0o0700, int(os.path.basename(fn)), int(os.path.basename(fn)))    # using user id as directory name
 
         # /sbin
         self._checkUsrMergeSymlink("/sbin", "usr/sbin")
@@ -1149,8 +1155,14 @@ class _HelperPrefixedDirOp:
         assert stat.S_IFMT(mode) == 0                      # no file type bits
 
         s = os.stat(fullfn)
-        ownerId = pwd.getpwnam(owner).pw_uid
-        groupId = grp.getgrnam(group).gr_gid
+        if isinstance(owner, int):
+            ownerId = owner
+        else:
+            ownerId = pwd.getpwnam(owner).pw_uid
+        if isinstance(group, int):
+            groupId = group
+        else:
+            groupId = grp.getgrnam(group).gr_gid
         if stat.S_IMODE(s.st_mode) != mode:
             if self.p._bAutoFix:
                 os.chmod(fullfn, mode)
