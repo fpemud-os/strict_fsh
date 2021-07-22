@@ -628,11 +628,12 @@ class RootFs:
 
 class PreMountRootFs:
 
-    def __init__(self, dir, mounted_boot=True, mounted_home=True, mounted_var=True):
+    def __init__(self, dir, mounted_boot=True, mounted_home=True, mounted_cache=True, mounted_var=True):
         self._helper = _HelperPrefixedDirOp(self)
         self._dirPrefix = dir
         self._bMountBoot = mounted_boot     # /boot is mounted
         self._bMountHome = mounted_home     # /root, /home/* are mounted
+        self._bMountCache = mounted_cache   # /var/cache, /var/spool, /var/tmp are mounted (to losable storage)
         self._bMountVar = mounted_var       # /var/cache, /var/db, /var/games, /var/lib, /var/log, /var/spool, /var/tmp, /var/www are mounted
 
     def check(self, auto_fix=False):
@@ -710,7 +711,7 @@ class PreMountRootFs:
             # /var/cache
             if self._exists("/var/cache"):
                 self._checkDir("/var/cache")
-                if self._bMountVar:
+                if self._bMountCache or self._bMountVar:
                     self._checkDirIsEmpty("/var/cache")
 
             # /var/db
@@ -750,7 +751,7 @@ class PreMountRootFs:
             # /var/spool
             if self._exists("/var/spool"):
                 self._checkDir("/var/spool")
-                if self._bMountVar:
+                if self._bMountCache or self._bMountVar:
                     self._checkDirIsEmpty("/var/spool")
 
             # /var/swap.dat
@@ -761,7 +762,7 @@ class PreMountRootFs:
 
             # /var/tmp
             self._checkDir("/var/tmp")
-            if self._bMountVar:
+            if self._bMountCache or self._bMountVar:
                 self._checkDirIsEmpty("/var/tmp")
 
             # /var/www
