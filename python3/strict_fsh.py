@@ -110,7 +110,7 @@ class RootFs:
       * /var/empty as a system wide empty directory
       * optional toolchain directories in /usr
       * optional per-user runtime directory /run/user/*
-      * optional dedicated per-user cache directory /var/cache/user/*
+      * optional per-user cache directory /var/cache/user/*
       * optional swap file /var/swap.dat
     """
 
@@ -478,7 +478,7 @@ class RootFs:
             if self._exists("/usr/local/share"):
                 ret.append("+ /usr/local/share")
         if True:
-            ret.append("+ /usr/opt")
+            ret.append("+ /usr/opt")                        # FIXME: make /opt -> /usr/opt ?
             if self._exists("/usr/opt/bin"):
                 ret.append("+ /usr/opt/bin")
         ret += [
@@ -493,10 +493,12 @@ class RootFs:
         ]
         if self._exists("/var/cache"):
             ret.append("+ /var/cache")
+            if self._exists("/var/cache/user"):
+                ret.append("+ /var/cache/user")
         if self._exists("/var/db"):
             ret.append("+ /var/db")
         ret += [
-            "+ /var/empty",       # empty directory
+            "+ /var/empty",
         ]
         if self._exists("/var/lib"):
             ret.append("+ /var/lib")
@@ -535,7 +537,12 @@ class RootFs:
     def _getWildcardsSystemCache(self):
         ret = []
         if self._exists("/var/cache"):
-            ret.append("+ /var/cache/**")
+            if self._exists("/var/cache/user"):
+                for fn in self._fullListDir("/var/cache"):  # exclude per-user cache directory
+                    if fn != "/var/cache/user":
+                        ret.append("+ %s/***" % (fn))
+            else:
+                ret.append("+ /var/cache/**")
         return ret
 
     def _getWildcardsUserData(self, user):
@@ -545,6 +552,10 @@ class RootFs:
         for fn in self._fullListDir("/home"):
             if user is None or user == os.path.basename(fn):
                 ret.append("+ %s/***" % (fn))       # "/home/X" belongs to user data
+        if os.path.exists("/var/cache/user"):
+            for fn in self._fullListDir("/var/cache/user"):
+                if user is None or user == pwd.getpwuid(int(os.path.basename(fn))).pw_name:
+                    ret.append("+ %s/***" % (fn))
         assert len(ret) > 0
         return ret
 
@@ -557,6 +568,10 @@ class RootFs:
             if user is None or user == os.path.basename(fn):
                 if self._exists("%s/.cache" % (fn)):
                     ret.append("+ %s/.cache/**" % (fn))
+        if os.path.exists("/var/cache/user"):
+            for fn in self._fullListDir("/var/cache/user"):
+                if user is None or user == pwd.getpwuid(int(os.path.basename(fn))).pw_name:
+                    ret.append("+ %s/**" % (fn))
         assert len(ret) > 0
         return ret
 
