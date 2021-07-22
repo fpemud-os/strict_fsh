@@ -1153,6 +1153,7 @@ class _HelperPrefixedDirOp:
 
     def __checkMetadata(self, fn, fullfn, mode, owner, group):
         assert stat.S_IFMT(mode) == 0                      # no file type bits
+        assert (owner is None and group is None) or (isinstance(owner, int) and isinstance(group, int)) or (isinstance(owner, str) and isinstance(group, str))
 
         s = os.stat(fullfn)
         if isinstance(owner, int):
