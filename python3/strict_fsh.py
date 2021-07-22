@@ -307,8 +307,8 @@ class RootFs:
                 self._checkDir("/var/cache/user", 0o0755, "root", "root")
                 for fn in self._fullListDir("/var/cache/user"):
                     userId = int(os.path.basename(fn))
-                    userName = pwd.getpwuid(userId).pw_name
                     self._checkDir(fn, 0o0700, userId, userId)      # user id is used as directory name
+                    userName = pwd.getpwuid(userId).pw_name
                     self._checkSymlink("/home/%s/.cache" % (userName), os.path.join("..", "..", fn[1:]))
 
         # /var/db
