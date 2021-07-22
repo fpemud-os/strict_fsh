@@ -107,8 +107,10 @@ class RootFs:
       * Fedora UsrMerge (https://fedoraproject.org/wiki/Features/UsrMove)
       * FreeDesktop Trash Specification (https://freedesktop.org/wiki/Specifications/trash-spec)
       * /etc/hostname for hostname configuration
-      * /var/empty provides a system wide empty directory
+      * /var/empty as a system wide empty directory
       * optional toolchain directories in /usr
+      * optional per-user runtime directory /run/user/*
+      * optional dedicated per-user cache directory /var/cache/user/*
       * optional swap file /var/swap.dat
     """
 
@@ -187,8 +189,7 @@ class RootFs:
         self._checkDir("/etc", 0o0755, "root", "root")
 
         # /etc/hostname
-        if self._exists("/usr/hostname"):
-            self._checkFile("/etc/hostname",  0o0644, "root", "root")
+        self._checkFile("/etc/hostname",  0o0644, "root", "root")
 
         # /home
         self._checkDir("/home", 0o0755, "root", "root")
@@ -220,7 +221,8 @@ class RootFs:
             if os.path.exists("/run/user"):
                 self._checkDir("/run/user", 0o0755, "root", "root")
                 for fn in self._fullListDir("/run/user"):
-                    self._checkDir(fn, 0o0700, int(os.path.basename(fn)), int(os.path.basename(fn)))    # using user id as directory name
+                    userId = int(os.path.basename(fn))
+                    self._checkDir(fn, 0o0700, userId, userId)      # user id is used as directory name
 
         # /sbin
         self._checkUsrMergeSymlink("/sbin", "usr/sbin")
@@ -229,7 +231,7 @@ class RootFs:
         self._checkDir("/sys", 0o0555, "root", "root")
 
         # /tmp
-        self._checkDir("/tmp", 0o1777, "root", "root")      # /tmp has stick bit
+        self._checkDir("/tmp", 0o1777, "root", "root")              # /tmp has stick bit
 
         # /usr
         self._checkDir("/usr", 0o0755, "root", "root")
@@ -301,6 +303,13 @@ class RootFs:
         # /var/cache
         if self._exists("/var/cache"):
             self._checkDir("/var/cache", 0o0755, "root", "root")
+            if self._exists("/var/cache/user"):
+                self._checkDir("/var/cache/user", 0o0755, "root", "root")
+                for fn in self._fullListDir("/var/cache/user"):
+                    userId = int(os.path.basename(fn))
+                    userName = pwd.getpwuid(userId).pw_name
+                    self._checkDir(fn, 0o0700, userId, userId)      # user id is used as directory name
+                    self._checkSymlink("/home/%s/.cache" % (userName), os.path.join("..", "..", fn[1:]))
 
         # /var/db
         if self._exists("/var/db"):
