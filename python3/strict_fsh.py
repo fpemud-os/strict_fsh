@@ -187,7 +187,8 @@ class RootFs:
         self._checkDir("/etc", 0o0755, "root", "root")
 
         # /etc/hostname
-        self._checkFile("/etc/hostname",  0o0644, "root", "root")
+        if self._exists("/usr/hostname"):
+            self._checkFile("/etc/hostname",  0o0644, "root", "root")
 
         # /home
         self._checkDir("/home", 0o0755, "root", "root")
@@ -705,6 +706,67 @@ class PreMountRootFs:
             # /usr
             self._checkDir("/usr")
 
+            # /usr/bin
+            self._checkDir("/usr/bin")
+
+            # /usr/games
+            if self._exists("/usr/games"):
+                self._checkDir("/usr/games")
+                if self._exists("/usr/games/bin"):
+                    self._checkDir("/usr/games/bin")
+
+            # /usr/include
+            if self._exists("/usr/include"):
+                self._checkDir("/usr/include")
+
+            # /usr/lib
+            self._checkDir("/usr/lib")
+
+            # /usr/lib64
+            self._checkDir("/usr/lib64")
+
+            # /usr/libexec
+            self._checkDir("/usr/libexec")
+
+            # /usr/local
+            if self._exists("/usr/local"):
+                self._checkDir("/usr/local")
+                if self._exists("/usr/local/bin"):
+                    self._checkDir("/usr/local/bin")
+                if self._exists("/usr/local/etc"):
+                    self._checkDir("/usr/local/etc")
+                if self._exists("/usr/local/games"):
+                    self._checkDir("/usr/local/games")
+                if self._exists("/usr/local/include"):
+                    self._checkDir("/usr/local/include")
+                if self._exists("/usr/local/lib"):
+                    self._checkDir("/usr/local/lib")
+                if self._exists("/usr/local/lib64"):
+                    self._checkDir("/usr/local/lib64")
+                if self._exists("/usr/local/man"):
+                    self._checkDir("/usr/local/man")
+                if self._exists("/usr/local/sbin"):
+                    self._checkDir("/usr/local/sbin")
+                if self._exists("/usr/local/share"):
+                    self._checkDir("/usr/local/share")
+                if self._exists("/usr/local/src"):
+                    self._checkDir("/usr/local/src")
+
+            # /usr/sbin
+            self._checkDir("/usr/sbin")
+
+            # /usr/share
+            self._checkDir("/usr/share")
+
+            # /usr/src
+            if self._exists("/usr/src"):
+                self._checkDir("/usr/src")
+
+            # toolchain directories in /usr
+            for fn in self._fullListDir("/usr"):
+                if _isToolChainName(os.path.basename(fn)):
+                    self._checkDir(fn)
+
             # /var
             self._checkDir("/var")
 
@@ -773,8 +835,11 @@ class PreMountRootFs:
 
             # redundant files
             self._checkNoRedundantEntry("/")
-            self._checkNoRedundantEntry("/dev", True)
-            self._checkNoRedundantEntry("/var", True)
+            self._checkNoRedundantEntry("/dev")
+            self._checkNoRedundantEntry("/usr")
+            if self._exists("/usr/local"):
+                self._checkNoRedundantEntry("/usr/local")
+            self._checkNoRedundantEntry("/var")
         finally:
             del self._record
             del self._bAutoFix
