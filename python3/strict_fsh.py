@@ -107,6 +107,7 @@ class RootFs:
       * Fedora UsrMerge (https://fedoraproject.org/wiki/Features/UsrMove)
       * FreeDesktop Trash Specification (https://freedesktop.org/wiki/Specifications/trash-spec)
       * /etc/hostname for hostname configuration
+      * /var/empty provides a system wide empty directory
       * optional toolchain directories in /usr
       * optional swap file /var/swap.dat
     """
@@ -298,7 +299,7 @@ class RootFs:
         if self._exists("/var/db"):
             self._checkDir("/var/db", 0o0755, "root", "root")
 
-        # /var/empty (home directory for user "nobody")
+        # /var/empty
         self._checkDir("/var/empty", 0o0755, "root", "root")
         self._checkDirIsEmpty("/var/empty")
 
@@ -627,13 +628,12 @@ class RootFs:
 
 class PreMountRootFs:
 
-    def __init__(self, dir, mounted_boot=True, mounted_home=True, mounted_usr=True, mounted_var=True):
+    def __init__(self, dir, mounted_boot=True, mounted_home=True, mounted_var=True):
         self._helper = _HelperPrefixedDirOp(self)
         self._dirPrefix = dir
         self._bMountBoot = mounted_boot     # /boot is mounted
-        self._bMountHome = mounted_home     # /root, /home are mounted
-        self._bMountUsr = mounted_usr       # /etc, /opt, /usr is mounted
-        self._bMountVar = mounted_var       # /var is mounted
+        self._bMountHome = mounted_home     # /root, /home/* are mounted
+        self._bMountVar = mounted_var       # /var/cache, /var/db, /var/games, /var/lib, /var/log, /var/spool, /var/tmp, /var/www are mounted
 
     def check(self, auto_fix=False):
         self._bAutoFix = auto_fix
@@ -657,13 +657,12 @@ class PreMountRootFs:
 
             # /etc
             self._checkDir("/etc")
-            if self._bMountUsr:
-                self._checkDirIsEmpty("/etc")
 
             # /home
             self._checkDir("/home")
             if self._bMountHome:
-                self._checkDirIsEmpty("/home")
+                for fn in self._fullListDir("/home"):
+                    self._checkDirIsEmpty(fn)
 
             # /lib
             self._checkUsrMergeSymlink("/lib", "usr/lib")
@@ -677,8 +676,6 @@ class PreMountRootFs:
 
             # /opt
             self._checkDir("/opt")
-            if self._bMountUsr:
-                self._checkDirIsEmpty("/opt")
 
             # /proc
             self._checkDir("/proc")
@@ -706,17 +703,77 @@ class PreMountRootFs:
 
             # /usr
             self._checkDir("/usr")
-            if self._bMountUsr:
-                self._checkDirIsEmpty("/usr")
 
             # /var
             self._checkDir("/var")
+
+            # /var/cache
+            if self._exists("/var/cache"):
+                self._checkDir("/var/cache")
+                if self._bMountVar:
+                    self._checkDirIsEmpty("/var/cache")
+
+            # /var/db
+            if self._exists("/var/db"):
+                self._checkDir("/var/db")
+                if self._bMountVar:
+                    self._checkDirIsEmpty("/var/db")
+
+            # /var/empty
+            self._checkDir("/var/empty")
+            self._checkDirIsEmpty("/var/empty")
+
+            # /var/games
+            if self._exists("/var/games"):
+                self._checkDir("/var/games")
+                if self._bMountVar:
+                    self._checkDirIsEmpty("/var/games")
+
+            # /var/lib
+            if self._exists("/var/lib"):
+                self._checkDir("/var/lib")
+                if self._bMountVar:
+                    self._checkDirIsEmpty("/var/lib")
+
+            # /var/lock
+            self._checkSymlink("/var/lock", "../run/lock")
+
+            # /var/log
+            if self._exists("/var/log"):
+                self._checkDir("/var/log")
+                if self._bMountVar:
+                    self._checkDirIsEmpty("/var/log")
+
+            # /var/run
+            self._checkSymlink("/var/run", "../run")
+
+            # /var/spool
+            if self._exists("/var/spool"):
+                self._checkDir("/var/spool")
+                if self._bMountVar:
+                    self._checkDirIsEmpty("/var/spool")
+
+            # /var/swap.dat
+            if self._exists("/var/swap.dat"):
+                self._checkFile("/var/swap.dat")
+                if self._bMountVar:
+                    assert False            # FIXME
+
+            # /var/tmp
+            self._checkDir("/var/tmp")
             if self._bMountVar:
-                self._checkDirIsEmpty("/var")
+                self._checkDirIsEmpty("/var/tmp")
+
+            # /var/www
+            if self._exists("/var/www"):
+                self._checkDir("/var/www")
+                if self._bMountVar:
+                    self._checkDirIsEmpty("/var/www")
 
             # redundant files
             self._checkNoRedundantEntry("/")
             self._checkNoRedundantEntry("/dev", True)
+            self._checkNoRedundantEntry("/var", True)
         finally:
             del self._record
             del self._bAutoFix
