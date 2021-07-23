@@ -1138,8 +1138,8 @@ class _HelperPrefixedDirOp:
             except KeyError:
                 self.p._checkResult.append("\"%s\" has an invalid group." % (fn))
 
-        # common check for directory and regular file
-        if stat.S_ISDIR(s) or _isRegularFile(s):
+        # common check
+        if True:
             if not (s.st_mode & stat.S_IRUSR):
                 self.p._checkResult.append("\"%s\" is not readable by owner." % (fn))
             if not (s.st_mode & stat.S_IWUSR):
@@ -1160,7 +1160,7 @@ class _HelperPrefixedDirOp:
             if (s.st_mode & stat.S_ISVTX):
                 self.p._checkResult.append("\"%s\" should not have sticky bit set." % (fn))
 
-        # check for symlink
+        # dedicated check for symlink
         if stat.S_ISLNK(s):
             if not os.path.exists(fullfn):
                 self.p._checkResult.append("\"%s\" is a broken symlink." % (fn))
@@ -1168,7 +1168,7 @@ class _HelperPrefixedDirOp:
                 self.p._checkResult.append("\"%s\" has invalid permission." % (fn))
             return
 
-        # check for directory
+        # dedicated check for directory
         if stat.S_ISDIR(s):
             if (s.st_mode & stat.S_ISUID):
                 self.p._checkResult.append("\"%s\" should not have SUID bit set." % (fn))
@@ -1184,43 +1184,8 @@ class _HelperPrefixedDirOp:
                 pass
             return
 
-        # check for device node
-        if stat.S_ISCHR(s) or stat.S_ISBLK(s):
-            self.p._checkResult.append("\"%s\" is a device node." % (fn))
-            return
-
-        # check for fifo
-        if stat.S_ISFIFO(s):
-            self.p._checkResult.append("\"%s\" is a fifo." % (fn))
-            return
-
-        # check for socket file
-        if stat.S_ISSOCK(s):
-            self.p._checkResult.append("\"%s\" is a socket file." % (fn))
-            return
-
-        # ???
+        # dedicated check for regular file
         if stat.S_ISREG(s):
-            self.p._checkResult.append("\"%s\" is a ???." % (fn))         # FIXME
-            return
-
-        # ???
-        if stat.S_ISDOOR(s):
-            self.p._checkResult.append("\"%s\" is a ???." % (fn))         # FIXME
-            return
-
-        # ???
-        if stat.S_ISPORT(s):
-            self.p._checkResult.append("\"%s\" is a ???." % (fn))         # FIXME
-            return
-
-        # ???
-        if stat.S_ISWHT(s):
-            self.p._checkResult.append("\"%s\" is a ???." % (fn))         # FIXME
-            return
-
-        # check for regular file
-        if self.__isRegularFile(s):
             if (s.st_mode & stat.S_ISUID):
                 bad = False
                 if not (s.st_mode & stat.S_IXUSR):
@@ -1237,7 +1202,8 @@ class _HelperPrefixedDirOp:
                 pass
             return
 
-        assert False
+        # all other file type a invalid for batch check
+        self.p._checkResult.append("Type of \"%s\" is invalid." % (fn))
 
     def _batchCheckOwnerGroup(self, fn, owner, group):
         assert self.__validPath(fn)
@@ -1409,27 +1375,3 @@ def _makeDeviceNodeFile(path, devType, major, minor, mode, owner, group):
     ownerId = pwd.getpwnam(owner).pw_uid
     groupId = grp.getgrnam(group).gr_gid
     os.chown(path, ownerId, groupId)
-
-
-def _isRegularFile(s):
-    if stat.S_ISLNK(s):
-        return False
-    if stat.S_ISDIR(s):
-        return False
-    if stat.S_ISCHR(s):
-        return False
-    if stat.S_ISBLK(s):
-        return False
-    if stat.S_ISFIFO(s):
-        return False
-    if stat.S_ISSOCK(s):
-        return False
-    if stat.S_ISREG(s):
-        return False
-    if stat.S_ISDOOR(s):
-        return False
-    if stat.S_ISPORT(s):
-        return False
-    if stat.S_ISWHT(s):
-        return False
-    return True
