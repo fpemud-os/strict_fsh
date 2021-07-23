@@ -68,12 +68,11 @@ def wildcards_match(name, wildcards):
     """
     Test whether NAME matches WILDCARDS.
 
-    Wildcard specification:
+    strict_fsh wildcard specification:
     o      '+ ' prefix means inclusion, '- ' prefix means exclusion, wildcards are order sensitive.
     o      use '**' to match anything, including slashes, but only trailing "dir_name/**" is allowed.
     o      a trailing "dir_name/***" will match both the directory (as if "dir_name/" had been specified) and everything in the directory (as if "dir_name/**" had been specified).
     o      wildcard must begin with a '/'.
-    o      wildcards are case sensitive.
     """
 
     _HelperWildcard.check_patterns(wildcards)
@@ -1217,7 +1216,7 @@ class _HelperPrefixedDirOp:
 
         if stat.S_IMODE(s.st_mode) != mode:
             if self.p._bAutoFix:
-                os.lchmod(fullfn, mode)
+                os.chmod(fullfn, mode)
             else:
                 self.p._checkResult.append("\"%s\" has invalid permission." % (fn))
 
