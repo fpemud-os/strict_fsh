@@ -919,7 +919,7 @@ class _HelperPrefixedDirOp:
         if mode is not None:
             self.__checkMode(fn, fullfn, mode)
         if owner is not None:
-            self.__checkOwnerGroup(fn, fullfn, mode, owner, group)
+            self.__checkOwnerGroup(fn, fullfn, owner, group)
 
     def _checkFile(self, fn, mode=None, owner=None, group=None):
         assert self.__validPath(fn)
@@ -941,7 +941,7 @@ class _HelperPrefixedDirOp:
         if mode is not None:
             self.__checkMode(fn, fullfn, mode)
         if owner is not None:
-            self.__checkOwnerGroup(fn, fullfn, mode, owner, group)
+            self.__checkOwnerGroup(fn, fullfn, owner, group)
 
     def _checkSymlink(self, fn, target, owner=None, group=None):
         assert self.__validPath(fn)
@@ -1022,7 +1022,7 @@ class _HelperPrefixedDirOp:
 
             # check mode, owner and group
             self.__checkMode(fn, fullfn, mode)
-            self.__checkOwnerGroup(fn, fullfn, mode, owner, group)
+            self.__checkOwnerGroup(fn, fullfn, owner, group)
 
         # redundant files
         keepList = [os.path.join(devDir, x[0]) for x in nodeInfoList]
