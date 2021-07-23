@@ -1202,7 +1202,7 @@ class _HelperPrefixedDirOp:
                 pass
             return
 
-        # all other file type a invalid for batch check
+        # all other file types are invalid for batch check
         self.p._checkResult.append("Type of \"%s\" is invalid." % (fn))
 
     def _batchCheckOwnerGroup(self, fn, owner, group):
