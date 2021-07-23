@@ -153,11 +153,11 @@ class RootFs:
         self._checkResult = []
         self._record = set()
         try:
-            self._check()
-            wildcards = self._getWildcardsSystem()
+            self._doCheckLayout()
+            self._doCheckSystemFiles()
             if deep_check:
-                wildcards = merge_wildcards(wildcards, self._getWildcardsSystemData())
-            self._deepCheckSystem(self._wildcardsGlob(wildcards))
+                self._doCheckSystemDataFiles()
+                self._doCheckUserDataFiles()
         finally:
             del self._record
             del self._bAutoFix
@@ -171,7 +171,7 @@ class RootFs:
         finally:
             del self._checkResult
 
-    def _check(self):
+    def _doCheckLayout(self):
         # /
         self._checkDir("/", 0o0755, "root", "root")
 
@@ -193,7 +193,8 @@ class RootFs:
         # /home
         self._checkDir("/home", 0o0755, "root", "root")
         for fn in self._fullListDir("/home"):
-            self._checkDir(fn, 0o0700, os.path.basename(fn), os.path.basename(fn))
+            userName = os.path.basename(fn)
+            self._checkDir(fn, 0o0700, userName, userName)
 
         # /lib
         self._checkSymlink("/lib", "usr/lib", "root", "root")
@@ -356,70 +357,20 @@ class RootFs:
             self._checkNoRedundantEntry("/usr/local")
         self._checkNoRedundantEntry("/var")
 
-    def _deepCheckSystem(self, fnList):
-        for fn in fnList:
-            fullfn = os.path.join(self._dirPrefix, fn[1:])
-            if not os.path.exists(fullfn):
-                if os.path.islink(fullfn):
-                    self._checkResult.append("\"%s\" is a broken symlink." % (fn))
-                else:
-                    self._checkResult.append("\"%s\" does not exist?!" % (fn))
-            else:
-                st = os.stat(fullfn)
-                if True:
-                    try:
-                        pwd.getpwuid(st.st_uid)
-                    except KeyError:
-                        self._checkResult.append("\"%s\" has an invalid owner." % (fn))
-                    try:
-                        grp.getgrgid(st.st_gid)
-                    except KeyError:
-                        self._checkResult.append("\"%s\" has an invalid group." % (fn))
-                if True:
-                    if not (st.st_mode & stat.S_IRUSR):
-                        self._checkResult.append("\"%s\" is not readable by owner." % (fn))
-                    if not (st.st_mode & stat.S_IWUSR):
-                        # FIXME: there're so many files violates this rule, strange
-                        # self._checkResult.append("\"%s\" is not writeable by owner." % (fn))
-                        pass
-                    if not (st.st_mode & stat.S_IRGRP) and (st.st_mode & stat.S_IWGRP):
-                        self._checkResult.append("\"%s\" is not readable but writable by group." % (fn))
-                    if not (st.st_mode & stat.S_IROTH) and (st.st_mode & stat.S_IWOTH):
-                        self._checkResult.append("\"%s\" is not readable but writable by other." % (fn))
-                    if not (st.st_mode & stat.S_IRGRP) and ((st.st_mode & stat.S_IROTH) or (st.st_mode & stat.S_IWOTH)):
-                        self._checkResult.append("\"%s\" is not readable by group but readable/writable by other." % (fn))
-                    if not (st.st_mode & stat.S_IWGRP) and (st.st_mode & stat.S_IWOTH):
-                        self._checkResult.append("\"%s\" is not writable by group but writable by other." % (fn))
-                if os.path.isdir(fullfn) and not os.path.islink(fullfn):
-                    if (st.st_mode & stat.S_ISUID):
-                        self._checkResult.append("\"%s\" should not have SUID bit set." % (fn))
-                    if (st.st_mode & stat.S_ISGID):
-                        # if showdn.startswith("/var/lib/portage"):
-                        #     pass        # FIXME, portage set SGID for these directories?
-                        # elif showdn.startswith("/var/log/portage"):
-                        #     pass        # FIXME, portage set SGID for these directories?
-                        # elif showdn.startswith("/var/log/journal"):
-                        #     pass        # FIXME, systemd set SGID for these directories?
-                        # else:
-                        #     self._checkResult.append("\"%s\" should not have SGID bit set." % (showdn))
-                        pass
-                else:
-                    if (st.st_mode & stat.S_ISUID):
-                        bad = False
-                        if not (st.st_mode & stat.S_IXUSR):
-                            bad = True
-                        if not (st.st_mode & stat.S_IXGRP) and ((st.st_mode & stat.S_IRGRP) or (st.st_mode & stat.S_IWGRP)):
-                            bad = True
-                        if not (st.st_mode & stat.S_IXOTH) and ((st.st_mode & stat.S_IROTH) or (st.st_mode & stat.S_IWOTH)):
-                            bad = True
-                        if bad:
-                            self._checkResult.append("\"%s\" is not appropriate for SUID bit." % (fn))
-                    if (st.st_mode & stat.S_ISGID):
-                        # FIXME
-                        # self.infoPrinter.printError("File \"%s\" should not have SGID bit set." % (showfn))
-                        pass
-                if (st.st_mode & stat.S_ISVTX):
-                    self._checkResult.append("\"%s\" should not have sticky bit set." % (fn))
+    def _doCheckSystemFiles(self):
+        for fn in self._wildcardsGlob(self._getWildcardsSystem()):
+            self._batchCheckBasic(fn)
+
+    def _doCheckSystemDataFiles(self):
+        for fn in self._wildcardsGlob(self._getWildcardsSystemData()):
+            self._batchCheckBasic(fn)
+
+    def _doCheckUserDataFiles(self):
+        for fn in self._fullListDir("/home"):
+            userName = os.path.basename(fn)
+            for fn in self._wildcardsGlob(self._getWildcardsUserData(userName)):
+                self._batchCheckBasic(fn)
+                self._batchCheckOwnerGroup(fn, userName, userName)
 
     def _getWildcardsLayout(self):
         ret = [
@@ -1170,6 +1121,128 @@ class _HelperPrefixedDirOp:
             if fullfn2 not in self.p._record:
                 self.p._checkResult.append("\"%s\" should not exist." % (fullfn2))
 
+    def _batchCheckBasic(self, fn):
+        assert self.__validPath(fn)
+
+        fullfn = self.__fn2fullfn(fn)
+        s = os.lstat(fullfn)
+
+        # common check
+        if True:
+            try:
+                pwd.getpwuid(s.st_uid)
+            except KeyError:
+                self.p._checkResult.append("\"%s\" has an invalid owner." % (fn))
+            try:
+                grp.getgrgid(s.st_gid)
+            except KeyError:
+                self.p._checkResult.append("\"%s\" has an invalid group." % (fn))
+
+        # common check for directory and regular file
+        if stat.S_ISDIR(s) or _isRegularFile(s):
+            if not (s.st_mode & stat.S_IRUSR):
+                self.p._checkResult.append("\"%s\" is not readable by owner." % (fn))
+            if not (s.st_mode & stat.S_IWUSR):
+                # FIXME: there're so many files violates this rule, strange
+                # self.p._checkResult.append("\"%s\" is not writeable by owner." % (fn))
+                pass
+            if not (s.st_mode & stat.S_IRGRP) and (s.st_mode & stat.S_IWGRP):
+                self.p._checkResult.append("\"%s\" is not readable but writable by group." % (fn))
+            if not (s.st_mode & stat.S_IROTH) and (s.st_mode & stat.S_IWOTH):
+                self.p._checkResult.append("\"%s\" is not readable but writable by other." % (fn))
+            if not (s.st_mode & stat.S_IRGRP) and ((s.st_mode & stat.S_IROTH) or (s.st_mode & stat.S_IWOTH)):
+                self.p._checkResult.append("\"%s\" is not readable by group but readable/writable by other." % (fn))
+            if not (s.st_mode & stat.S_IWGRP) and (s.st_mode & stat.S_IWOTH):
+                self.p._checkResult.append("\"%s\" is not writable by group but writable by other." % (fn))
+
+        # common check
+        if True:
+            if (s.st_mode & stat.S_ISVTX):
+                self.p._checkResult.append("\"%s\" should not have sticky bit set." % (fn))
+
+        # check for symlink
+        if stat.S_ISLNK(s):
+            if not os.path.exists(fullfn):
+                self.p._checkResult.append("\"%s\" is a broken symlink." % (fn))
+            if stat.S_IMODE(s.st_mode) != 0o0777:
+                self.p._checkResult.append("\"%s\" has invalid permission." % (fn))
+            return
+
+        # check for directory
+        if stat.S_ISDIR(s):
+            if (s.st_mode & stat.S_ISUID):
+                self.p._checkResult.append("\"%s\" should not have SUID bit set." % (fn))
+            if (s.st_mode & stat.S_ISGID):
+                # if showdn.startswith("/var/lib/portage"):
+                #     pass        # FIXME, portage set SGID for these directories?
+                # elif showdn.startswith("/var/log/portage"):
+                #     pass        # FIXME, portage set SGID for these directories?
+                # elif showdn.startswith("/var/log/journal"):
+                #     pass        # FIXME, systemd set SGID for these directories?
+                # else:
+                #     self.p._checkResult.append("\"%s\" should not have SGID bit set." % (showdn))
+                pass
+            return
+
+        # check for device node
+        if stat.S_ISCHR(s) or stat.S_ISBLK(s):
+            self.p._checkResult.append("\"%s\" is a device node." % (fn))
+            return
+
+        # check for fifo
+        if stat.S_ISFIFO(s):
+            self.p._checkResult.append("\"%s\" is a fifo." % (fn))
+            return
+
+        # check for socket file
+        if stat.S_ISSOCK(s):
+            self.p._checkResult.append("\"%s\" is a socket file." % (fn))
+            return
+
+        # ???
+        if stat.S_ISREG(s):
+            self.p._checkResult.append("\"%s\" is a ???." % (fn))         # FIXME
+            return
+
+        # ???
+        if stat.S_ISDOOR(s):
+            self.p._checkResult.append("\"%s\" is a ???." % (fn))         # FIXME
+            return
+
+        # ???
+        if stat.S_ISPORT(s):
+            self.p._checkResult.append("\"%s\" is a ???." % (fn))         # FIXME
+            return
+
+        # ???
+        if stat.S_ISWHT(s):
+            self.p._checkResult.append("\"%s\" is a ???." % (fn))         # FIXME
+            return
+
+        # check for regular file
+        if self.__isRegularFile(s):
+            if (s.st_mode & stat.S_ISUID):
+                bad = False
+                if not (s.st_mode & stat.S_IXUSR):
+                    bad = True
+                if not (s.st_mode & stat.S_IXGRP) and ((s.st_mode & stat.S_IRGRP) or (s.st_mode & stat.S_IWGRP)):
+                    bad = True
+                if not (s.st_mode & stat.S_IXOTH) and ((s.st_mode & stat.S_IROTH) or (s.st_mode & stat.S_IWOTH)):
+                    bad = True
+                if bad:
+                    self.p._checkResult.append("\"%s\" is not appropriate for SUID bit." % (fn))
+            if (s.st_mode & stat.S_ISGID):
+                # FIXME
+                # self.infoPrinter.printError("File \"%s\" should not have SGID bit set." % (showfn))
+                pass
+            return
+
+        assert False
+
+    def _batchCheckOwnerGroup(self, fn, owner, group):
+        assert self.__validPath(fn)
+        self.__checkOwnerGroup(fn, self.__fn2fullfn(fn), owner, group)
+
     def __checkMode(self, fn, fullfn, mode):
         assert not os.path.islink(fullfn)
         assert stat.S_IFMT(mode) == 0                      # no file type bits
@@ -1336,3 +1409,27 @@ def _makeDeviceNodeFile(path, devType, major, minor, mode, owner, group):
     ownerId = pwd.getpwnam(owner).pw_uid
     groupId = grp.getgrnam(group).gr_gid
     os.chown(path, ownerId, groupId)
+
+
+def _isRegularFile(s):
+    if stat.S_ISLNK(s):
+        return False
+    if stat.S_ISDIR(s):
+        return False
+    if stat.S_ISCHR(s):
+        return False
+    if stat.S_ISBLK(s):
+        return False
+    if stat.S_ISFIFO(s):
+        return False
+    if stat.S_ISSOCK(s):
+        return False
+    if stat.S_ISREG(s):
+        return False
+    if stat.S_ISDOOR(s):
+        return False
+    if stat.S_ISPORT(s):
+        return False
+    if stat.S_ISWHT(s):
+        return False
+    return True
