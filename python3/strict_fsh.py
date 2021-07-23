@@ -111,7 +111,6 @@ class RootFs:
       * optional toolchain directories in /usr
       * optional per-user runtime directory /run/user/*
       * optional per-user cache directory /var/cache/user/*
-      * optional swap file /var/swap.dat
     """
 
     def __init__(self, dirPrefix="/"):
@@ -303,13 +302,15 @@ class RootFs:
         # /var/cache
         if self._exists("/var/cache"):
             self._checkDir("/var/cache", 0o0755, "root", "root")
+
+            # /var/cache/user
             if self._exists("/var/cache/user"):
                 self._checkDir("/var/cache/user", 0o0755, "root", "root")
                 for fn in self._fullListDir("/var/cache/user"):
                     userId = int(os.path.basename(fn))
                     self._checkDir(fn, 0o0700, userId, userId)      # user id is used as directory name
                     userName = pwd.getpwuid(userId).pw_name
-                    self._checkSymlink("/home/%s/.cache" % (userName), os.path.join("..", "..", fn[1:]))
+                    self._checkSymlink("/home/%s/.cache" % (userName), os.path.join("..", "..", fn[1:]))    # FIXME: compatibile to XDG specification
 
         # /var/db
         if self._exists("/var/db"):
@@ -340,10 +341,6 @@ class RootFs:
         # /var/spool
         if self._exists("/var/spool"):
             self._checkDir("/var/spool", 0o0755, "root", "root")
-
-        # /var/swap.dat
-        if self._exists("/var/swap.dat"):
-            self._checkFile("/var/swap.dat", 0o0600, "root", "root")
 
         # /var/tmp
         self._checkDir("/var/tmp", 0o1777, "root", "root")      # /var/tmp has stick bit
@@ -530,8 +527,6 @@ class RootFs:
             ret.append("+ /var/lib/**")
         if self._exists("/var/log"):
             ret.append("+ /var/log/**")
-        if self._exists("/var/swap.dat"):
-            ret.append("+ /var/swap.dat")
         return ret
 
     def _getWildcardsSystemCache(self):
@@ -845,12 +840,6 @@ class PreMountRootFs:
                 self._checkDir("/var/spool")
                 if self._bMountCache or self._bMountVar:
                     self._checkDirIsEmpty("/var/spool")
-
-            # /var/swap.dat
-            if self._exists("/var/swap.dat"):
-                self._checkFile("/var/swap.dat")
-                if self._bMountVar:
-                    assert False            # FIXME
 
             # /var/tmp
             self._checkDir("/var/tmp")
