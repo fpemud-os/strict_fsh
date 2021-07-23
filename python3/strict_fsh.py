@@ -176,7 +176,7 @@ class RootFs:
         self._checkDir("/", 0o0755, "root", "root")
 
         # /bin
-        self._checkUsrMergeSymlink("/bin", "usr/bin")
+        self._checkSymlink("/bin", "usr/bin", "root", "root")
 
         # /boot
         self._checkDir("/boot", 0o0755, "root", "root")
@@ -196,10 +196,10 @@ class RootFs:
             self._checkDir(fn, 0o0700, os.path.basename(fn), os.path.basename(fn))
 
         # /lib
-        self._checkUsrMergeSymlink("/lib", "usr/lib")
+        self._checkSymlink("/lib", "usr/lib", "root", "root")
 
         # /lib64
-        self._checkUsrMergeSymlink("/lib64", "usr/lib64")
+        self._checkSymlink("/lib64", "usr/lib64", "root", "root")
 
         # /mnt
         self._checkDir("/mnt", 0o0755, "root", "root")
@@ -224,7 +224,7 @@ class RootFs:
                     self._checkDir(fn, 0o0700, userId, userId)      # user id is used as directory name
 
         # /sbin
-        self._checkUsrMergeSymlink("/sbin", "usr/sbin")
+        self._checkSymlink("/sbin", "usr/sbin", "root", "root")
 
         # /sys
         self._checkDir("/sys", 0o0555, "root", "root")
@@ -329,14 +329,14 @@ class RootFs:
             self._checkDir("/var/lib", 0o0755, "root", "root")
 
         # /var/lock
-        self._checkSymlink("/var/lock", "../run/lock")
+        self._checkSymlink("/var/lock", "../run/lock", "root", "root")
 
         # /var/log
         if self._exists("/var/log"):
             self._checkDir("/var/log", 0o0755, "root", "root")
 
         # /var/run
-        self._checkSymlink("/var/run", "../run")
+        self._checkSymlink("/var/run", "../run", "root", "root")
 
         # /var/spool
         if self._exists("/var/spool"):
@@ -931,7 +931,7 @@ class _HelperPrefixedDirOp:
     def _exists(self, fn):
         assert self.__validPath(fn)
 
-        return os.path.exists(self.__fn2fullfn(fn))
+        return os.path.lexists(self.__fn2fullfn(fn))
 
     def _fullListDir(self, fn, recursive=False):
         assert self.__validPath(fn)
@@ -951,12 +951,14 @@ class _HelperPrefixedDirOp:
 
         fullfn = self.__fn2fullfn(fn)
 
-        if not os.path.exists(fullfn):
+        if not os.path.lexists(fullfn):
             if self.p._bAutoFix:
                 os.mkdir(fullfn)
             else:
                 self.p._checkResult.append("\"%s\" does not exist." % (fn))
                 return
+
+        self.p._record.add(fn)
 
         if os.path.islink(fullfn) or not os.path.isdir(fullfn):
             # no way to autofix
@@ -964,19 +966,21 @@ class _HelperPrefixedDirOp:
             return
 
         if mode is not None:
-            self.__checkMetadata(fn, fullfn, mode, owner, group)
-
-        self.p._record.add(fn)
+            self.__checkMode(fn, fullfn, mode)
+        if owner is not None:
+            self.__checkOwnerGroup(fn, fullfn, mode, owner, group)
 
     def _checkFile(self, fn, mode=None, owner=None, group=None):
         assert self.__validPath(fn)
 
         fullfn = self.__fn2fullfn(fn)
 
-        if not os.path.exists(fullfn):
+        if not os.path.lexists(fullfn):
             # no way to autofix
             self.p._checkResult.append("\"%s\" does not exist." % (fn))
             return
+
+        self.p._record.add(fn)
 
         if os.path.islink(fullfn) or not os.path.isfile(fullfn):
             # no way to autofix
@@ -984,21 +988,23 @@ class _HelperPrefixedDirOp:
             return
 
         if mode is not None:
-            self.__checkMetadata(fn, fullfn, mode, owner, group)
+            self.__checkMode(fn, fullfn, mode)
+        if owner is not None:
+            self.__checkOwnerGroup(fn, fullfn, mode, owner, group)
 
-        self.p._record.add(fn)
-
-    def _checkSymlink(self, fn, target):
+    def _checkSymlink(self, fn, target, owner=None, group=None):
         assert self.__validPath(fn)
 
         fullfn = self.__fn2fullfn(fn)
 
-        if not os.path.exists(fullfn):
+        if not os.path.lexists(fullfn):
             if self.p._bAutoFix:
                 os.symlink(target, fullfn)
             else:
                 self.p._checkResult.append("\"%s\" does not exist." % (fn))
                 return
+
+        self.p._record.add(fn)
 
         if not os.path.islink(fullfn):
             # no way to autofix
@@ -1013,7 +1019,8 @@ class _HelperPrefixedDirOp:
                 self.p._checkResult.append("\"%s\" is invalid." % (fn))
                 return
 
-        self.p._record.add(fn)
+        if owner is not None:
+            self.__checkOwnerGroup(fn, fullfn, owner, group)
 
     def _checkDevDirContent(self, devDir, nodeInfoList):
         assert self.__validPath(devDir)
@@ -1024,14 +1031,14 @@ class _HelperPrefixedDirOp:
             fullfn = self.__fn2fullfn(fn)
 
             # check file existence
-            if not os.path.exists(fullfn):
+            if not os.path.lexists(fullfn):
                 if self.p._bAutoFix:
                     _makeDeviceNodeFile(fullfn, devType, major, minor, mode, owner, group)
                 else:
                     self.p._checkResult.append("\"%s\" does not exist." % (fn))
                     continue
 
-            s = os.stat(fullfn)
+            s = os.lstat(fullfn)
 
             # check type
             if devType == "b":
@@ -1063,7 +1070,8 @@ class _HelperPrefixedDirOp:
                     continue
 
             # check mode, owner and group
-            self.__checkMetadata(fn, fullfn, mode, owner, group)
+            self.__checkMode(fn, fullfn, mode)
+            self.__checkOwnerGroup(fn, fullfn, mode, owner, group)
 
         # redundant files
         keepList = [os.path.join(devDir, x[0]) for x in nodeInfoList]
@@ -1094,23 +1102,25 @@ class _HelperPrefixedDirOp:
         for fn in self._fullListDir(devDir, recursive=True):
             self.p._record.add(fn)
 
-    def _checkUsrMergeSymlink(self, fn, target):
+    def _checkUsrMergeSymlink(self, fn, target, owner=None, group=None):
         assert self.__validPath(fn)
 
         fullfn = self.__fn2fullfn(fn)
         fullTarget = os.path.join(os.path.dirname(fullfn), target)
 
-        if not _isRealDir(fullTarget):
-            # no way to autofix
-            self.p._checkResult.append("\"%s\" is invalid." % (fullTarget))
-            return
-
-        if not os.path.exists(fullfn):
+        if not os.path.lexists(fullfn):
             if self.p._bAutoFix:
                 os.symlink(target, fullfn)
             else:
                 self.p._checkResult.append("\"%s\" does not exist." % (fn))
                 return
+
+        self.p._record.add(fn)
+
+        if not _isRealDir(fullTarget):
+            # no way to autofix
+            self.p._checkResult.append("\"%s\" is invalid." % (fullTarget))
+            return
 
         if not os.path.islink(fullfn):
             if _isRealDir(fullfn):
@@ -1134,7 +1144,8 @@ class _HelperPrefixedDirOp:
                 self.p._checkResult.append("\"%s\" is invalid." % (fn))
                 return
 
-        self.p._record.add(fn)
+        if owner is not None:
+            self.__checkOwnerGroup(fn, fullfn, owner, group)
 
     def _checkDirIsEmpty(self, fn):
         assert self.__validPath(fn)
@@ -1148,11 +1159,6 @@ class _HelperPrefixedDirOp:
             # dangerous to autofix
             self.p._checkResult.append("\"%s\" is not empty." % (fn))
 
-    def _checkMetadata(self, fn, mode, owner, group):
-        assert self.__validPath(fn)
-
-        self.__checkMetadata(fn, self.__fn2fullfn(fn), mode, owner, group)
-
     def _checkNoRedundantEntry(self, fn, bIgnoreDotKeepFiles=False):
         assert self.__validPath(fn)
 
@@ -1164,11 +1170,21 @@ class _HelperPrefixedDirOp:
             if fullfn2 not in self.p._record:
                 self.p._checkResult.append("\"%s\" should not exist." % (fullfn2))
 
-    def __checkMetadata(self, fn, fullfn, mode, owner, group):
+    def __checkMode(self, fn, fullfn, mode):
+        assert not os.path.islink(fullfn)
         assert stat.S_IFMT(mode) == 0                      # no file type bits
+
+        s = os.lstat(fullfn)
+
+        if stat.S_IMODE(s.st_mode) != mode:
+            if self.p._bAutoFix:
+                os.lchmod(fullfn, mode)
+            else:
+                self.p._checkResult.append("\"%s\" has invalid permission." % (fn))
+
+    def __checkOwnerGroup(self, fn, fullfn, owner, group):
         assert (owner is None and group is None) or (isinstance(owner, int) and isinstance(group, int)) or (isinstance(owner, str) and isinstance(group, str))
 
-        s = os.stat(fullfn)
         if isinstance(owner, int):
             ownerId = owner
         else:
@@ -1177,21 +1193,20 @@ class _HelperPrefixedDirOp:
             groupId = group
         else:
             groupId = grp.getgrnam(group).gr_gid
-        if stat.S_IMODE(s.st_mode) != mode:
+
+        s = os.lstat(fullfn)
+
+        if s.st_uid != ownerId:
             if self.p._bAutoFix:
-                os.chmod(fullfn, mode)
+                os.lchown(fullfn, ownerId, s.st_gid)
             else:
-                self.p._checkResult.append("\"%s\" has invalid permission." % (fn))
-            if s.st_uid != ownerId:
-                if self.p._bAutoFix:
-                    os.chown(fullfn, ownerId, s.st_gid)
-                else:
-                    self.p._checkResult.append("\"%s\" has invalid owner." % (fn))
-            if s.st_gid != groupId:
-                if self.p._bAutoFix:
-                    os.chown(fullfn, s.st_uid, groupId)
-                else:
-                    self.p._checkResult.append("\"%s\" has invalid owner group." % (fn))
+                self.p._checkResult.append("\"%s\" has invalid owner." % (fn))
+
+        if s.st_gid != groupId:
+            if self.p._bAutoFix:
+                os.lchown(fullfn, s.st_uid, groupId)
+            else:
+                self.p._checkResult.append("\"%s\" has invalid owner group." % (fn))
 
     def __fn2fullfn(self, fn):
         return os.path.join(self.p._dirPrefix, fn[1:])
