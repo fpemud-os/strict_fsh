@@ -1161,7 +1161,7 @@ class _HelperPrefixedDirOp:
                 self.p._checkResult.append("\"%s\" should not have sticky bit set." % (fn))
 
         # dedicated check for symlink
-        if stat.S_ISLNK(s):
+        if stat.S_ISLNK(s.st_mode):
             if not os.path.exists(fullfn):
                 self.p._checkResult.append("\"%s\" is a broken symlink." % (fn))
             if stat.S_IMODE(s.st_mode) != 0o0777:
@@ -1169,7 +1169,7 @@ class _HelperPrefixedDirOp:
             return
 
         # dedicated check for directory
-        if stat.S_ISDIR(s):
+        if stat.S_ISDIR(s.st_mode):
             if (s.st_mode & stat.S_ISUID):
                 self.p._checkResult.append("\"%s\" should not have SUID bit set." % (fn))
             if (s.st_mode & stat.S_ISGID):
@@ -1185,7 +1185,7 @@ class _HelperPrefixedDirOp:
             return
 
         # dedicated check for regular file
-        if stat.S_ISREG(s):
+        if stat.S_ISREG(s.st_mode):
             if (s.st_mode & stat.S_ISUID):
                 bad = False
                 if not (s.st_mode & stat.S_IXUSR):
