@@ -351,11 +351,11 @@ class RootFs:
             self._checkDir("/var/www", 0o0775, "root", "root")
 
         # redundant files
-        self._checkNoRedundantEntry("/")
-        self._checkNoRedundantEntry("/usr")
+        self._checkNoRedundantFilesWithoutRecursion("/")
+        self._checkNoRedundantFilesWithoutRecursion("/usr")
         if self._exists("/usr/local"):
-            self._checkNoRedundantEntry("/usr/local")
-        self._checkNoRedundantEntry("/var")
+            self._checkNoRedundantFilesWithoutRecursion("/usr/local")
+        self._checkNoRedundantFilesWithoutRecursion("/var")
 
     def _doCheckSystemFiles(self):
         for fn in self._wildcardsGlob(self._getWildcardsSystem()):
@@ -804,12 +804,12 @@ class PreMountRootFs:
                     self._checkDirIsEmpty("/var/www")
 
             # redundant files
-            self._checkNoRedundantEntry("/")
-            self._checkNoRedundantEntry("/dev")
-            self._checkNoRedundantEntry("/usr")
+            self._checkNoRedundantFilesWithoutRecursion("/")
+            self._checkNoRedundantFilesWithoutRecursion("/dev")
+            self._checkNoRedundantFilesWithoutRecursion("/usr")
             if self._exists("/usr/local"):
-                self._checkNoRedundantEntry("/usr/local")
-            self._checkNoRedundantEntry("/var")
+                self._checkNoRedundantFilesWithoutRecursion("/usr/local")
+            self._checkNoRedundantFilesWithoutRecursion("/var")
         finally:
             del self._record
             del self._bAutoFix
@@ -1110,7 +1110,7 @@ class _HelperPrefixedDirOp:
             # dangerous to autofix
             self.p._checkResult.append("\"%s\" is not empty." % (fn))
 
-    def _checkNoRedundantEntry(self, fn, bIgnoreDotKeepFiles=False):
+    def _checkNoRedundantFilesWithoutRecursion(self, fn, bIgnoreDotKeepFiles=False):
         assert self.__validPath(fn)
 
         fullfn = self.__fn2fullfn(fn)
