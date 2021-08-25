@@ -147,9 +147,9 @@ class RootFs:
         _HelperWildcard.check_patterns(wildcards)
         return self._wildcardsGlob(wildcards)
 
-    def check(self, deep_check=False, auto_fix=False):
+    def check(self, deep_check=False, auto_fix=False, error_callback=None):
         self._bAutoFix = auto_fix
-        self._checkResult = []
+        self._errCb = error_callback if error_callback is not None else _doNothing
         self._record = set()
         try:
             self._doCheckLayout()
@@ -160,15 +160,6 @@ class RootFs:
         finally:
             del self._record
             del self._bAutoFix
-
-    def check_complete(self, raise_exception=False):
-        try:
-            if not raise_exception:
-                return self._checkResult
-            else:
-                raise CheckError(self._checkResult)
-        finally:
-            del self._checkResult
 
     def _doCheckLayout(self):
         # /
@@ -612,9 +603,9 @@ class PreMountRootFs:
         self._bMountCache = mounted_cache   # /var/cache, /var/spool, /var/tmp are mounted (to losable storage)
         self._bMountVar = mounted_var       # /var/cache, /var/db, /var/games, /var/lib, /var/log, /var/spool, /var/tmp, /var/www are mounted
 
-    def check(self, auto_fix=False):
+    def check(self, auto_fix=False, error_callback=None):
         self._bAutoFix = auto_fix
-        self._checkResult = []
+        self._errCb = error_callback if error_callback is not None else _doNothing
         self._record = set()
         try:
             # /bin
@@ -813,21 +804,8 @@ class PreMountRootFs:
             del self._record
             del self._bAutoFix
 
-    def check_complete(self, raise_exception=False):
-        try:
-            if not raise_exception:
-                return self._checkResult
-            else:
-                raise CheckError(self._checkResult)
-        finally:
-            del self._checkResult
-
     def __getattr__(self, attr):
         return getattr(self._helper, attr)
-
-
-class CheckError(Exception):
-    pass
 
 
 class WildcardError(Exception):
@@ -873,7 +851,7 @@ class _HelperWildcard:
 
 class _HelperPrefixedDirOp:
 
-    # we need self.p._dirPrefix, self.p._bAutoFix, self.p._record, self.p._checkResult
+    # we need self.p._dirPrefix, self.p._bAutoFix, self.p._record, self.p._errCb
 
     def __init__(self, parent):
         self.p = parent
@@ -905,14 +883,14 @@ class _HelperPrefixedDirOp:
             if self.p._bAutoFix:
                 os.mkdir(fullfn)
             else:
-                self.p._checkResult.append("\"%s\" does not exist." % (fn))
+                self.p._errCb("\"%s\" does not exist." % (fn))
                 return
 
         self.p._record.add(fn)
 
         if os.path.islink(fullfn) or not os.path.isdir(fullfn):
             # no way to autofix
-            self.p._checkResult.append("\"%s\" is invalid." % (fn))
+            self.p._errCb("\"%s\" is invalid." % (fn))
             return
 
         if mode is not None:
@@ -927,14 +905,14 @@ class _HelperPrefixedDirOp:
 
         if not os.path.lexists(fullfn):
             # no way to autofix
-            self.p._checkResult.append("\"%s\" does not exist." % (fn))
+            self.p._errCb("\"%s\" does not exist." % (fn))
             return
 
         self.p._record.add(fn)
 
         if os.path.islink(fullfn) or not os.path.isfile(fullfn):
             # no way to autofix
-            self.p._checkResult.append("\"%s\" is invalid." % (fn))
+            self.p._errCb("\"%s\" is invalid." % (fn))
             return
 
         if mode is not None:
@@ -951,14 +929,14 @@ class _HelperPrefixedDirOp:
             if self.p._bAutoFix:
                 os.symlink(target, fullfn)
             else:
-                self.p._checkResult.append("\"%s\" does not exist." % (fn))
+                self.p._errCb("\"%s\" does not exist." % (fn))
                 return
 
         self.p._record.add(fn)
 
         if not os.path.islink(fullfn):
             # no way to autofix
-            self.p._checkResult.append("\"%s\" is invalid." % (fn))
+            self.p._errCb("\"%s\" is invalid." % (fn))
             return
 
         if os.readlink(fullfn) != target:
@@ -966,7 +944,7 @@ class _HelperPrefixedDirOp:
                 os.unlink(fullfn)
                 os.symlink(target, fullfn)
             else:
-                self.p._checkResult.append("\"%s\" is invalid." % (fn))
+                self.p._errCb("\"%s\" is invalid." % (fn))
                 return
 
         if owner is not None:
@@ -985,7 +963,7 @@ class _HelperPrefixedDirOp:
                 if self.p._bAutoFix:
                     _makeDeviceNodeFile(fullfn, devType, major, minor, mode, owner, group)
                 else:
-                    self.p._checkResult.append("\"%s\" does not exist." % (fn))
+                    self.p._errCb("\"%s\" does not exist." % (fn))
                     continue
 
             s = os.lstat(fullfn)
@@ -997,7 +975,7 @@ class _HelperPrefixedDirOp:
                         os.remove(fullfn)
                         _makeDeviceNodeFile(fullfn, devType, major, minor, mode, owner, group)
                     else:
-                        self.p._checkResult.append("\"%s\" is not a block special device file." % (fn))
+                        self.p._errCb("\"%s\" is not a block special device file." % (fn))
                         continue
             elif devType == "c":
                 if not stat.S_ISCHR(s.st_mode):
@@ -1005,7 +983,7 @@ class _HelperPrefixedDirOp:
                         os.remove(fullfn)
                         _makeDeviceNodeFile(fullfn, devType, major, minor, mode, owner, group)
                     else:
-                        self.p._checkResult.append("\"%s\" is not a character special device file." % (fn))
+                        self.p._errCb("\"%s\" is not a character special device file." % (fn))
                         continue
             else:
                 assert False
@@ -1016,7 +994,7 @@ class _HelperPrefixedDirOp:
                     os.remove(fullfn)
                     _makeDeviceNodeFile(fullfn, devType, major, minor, mode, owner, group)
                 else:
-                    self.p._checkResult.append("\"%s\" has invalid major and minor number." % (fn))
+                    self.p._errCb("\"%s\" has invalid major and minor number." % (fn))
                     continue
 
             # check mode, owner and group
@@ -1042,11 +1020,11 @@ class _HelperPrefixedDirOp:
                     except OSError as e:
                         if e.errno == 39:
                             # OSError: [Errno 39] Directory not empty
-                            self.p._checkResult.append("Directory \"%s\" should not exist but has valid file(s) in it." % (fn))
+                            self.p._errCb("Directory \"%s\" should not exist but has valid file(s) in it." % (fn))
                         else:
                             raise
             else:
-                self.p._checkResult.append("\"%s\" should not exist." % (fn))
+                self.p._errCb("\"%s\" should not exist." % (fn))
 
         # record files
         for fn in self._fullListDir(devDir, recursive=True):
@@ -1062,14 +1040,14 @@ class _HelperPrefixedDirOp:
             if self.p._bAutoFix:
                 os.symlink(target, fullfn)
             else:
-                self.p._checkResult.append("\"%s\" does not exist." % (fn))
+                self.p._errCb("\"%s\" does not exist." % (fn))
                 return
 
         self.p._record.add(fn)
 
         if not _isRealDir(fullTarget):
             # no way to autofix
-            self.p._checkResult.append("\"%s\" is invalid." % (fullTarget))
+            self.p._errCb("\"%s\" is invalid." % (fullTarget))
             return
 
         if not os.path.islink(fullfn):
@@ -1079,11 +1057,11 @@ class _HelperPrefixedDirOp:
                     _HelperUsrMerge.move_dir(fullfn, fullTarget)
                     os.symlink(target, fullfn)
                 else:
-                    self.p._checkResult.append("Directory \"%s\" and \"%s\" has common files, no way to combine them." % (fn, target))
+                    self.p._errCb("Directory \"%s\" and \"%s\" has common files, no way to combine them." % (fn, target))
                     return
             else:
                 # no way to autofix
-                self.p._checkResult.append("\"%s\" is invalid." % (fullTarget))
+                self.p._errCb("\"%s\" is invalid." % (fullTarget))
                 return
 
         if os.readlink(fullfn) != target:
@@ -1091,7 +1069,7 @@ class _HelperPrefixedDirOp:
                 os.unlink(fullfn)
                 os.symlink(target, fullfn)
             else:
-                self.p._checkResult.append("\"%s\" is invalid." % (fn))
+                self.p._errCb("\"%s\" is invalid." % (fn))
                 return
 
         if owner is not None:
@@ -1107,7 +1085,7 @@ class _HelperPrefixedDirOp:
                 break
         if bFound:
             # dangerous to autofix
-            self.p._checkResult.append("\"%s\" is not empty." % (fn))
+            self.p._errCb("\"%s\" is not empty." % (fn))
 
     def _checkNoRedundantFilesWithoutRecursion(self, fn, bIgnoreDotKeepFiles=False):
         assert self.__validPath(fn)
@@ -1118,7 +1096,7 @@ class _HelperPrefixedDirOp:
                 continue
             fullfn2 = os.path.join(fn, fn2)
             if fullfn2 not in self.p._record:
-                self.p._checkResult.append("\"%s\" should not exist." % (fullfn2))
+                self.p._errCb("\"%s\" should not exist." % (fullfn2))
 
     def _batchCheckBasic(self, fn):
         assert self.__validPath(fn)
@@ -1131,46 +1109,46 @@ class _HelperPrefixedDirOp:
             try:
                 pwd.getpwuid(s.st_uid)
             except KeyError:
-                self.p._checkResult.append("\"%s\" has an invalid owner." % (fn))
+                self.p._errCb("\"%s\" has an invalid owner." % (fn))
             try:
                 grp.getgrgid(s.st_gid)
             except KeyError:
-                self.p._checkResult.append("\"%s\" has an invalid group." % (fn))
+                self.p._errCb("\"%s\" has an invalid group." % (fn))
 
         # common check
         if True:
             if not (s.st_mode & stat.S_IRUSR):
-                self.p._checkResult.append("\"%s\" is not readable by owner." % (fn))
+                self.p._errCb("\"%s\" is not readable by owner." % (fn))
             if not (s.st_mode & stat.S_IWUSR):
                 # FIXME: there're so many files violates this rule, strange
-                # self.p._checkResult.append("\"%s\" is not writeable by owner." % (fn))
+                # self.p._errCb("\"%s\" is not writeable by owner." % (fn))
                 pass
             if not (s.st_mode & stat.S_IRGRP) and (s.st_mode & stat.S_IWGRP):
-                self.p._checkResult.append("\"%s\" is not readable but writable by group." % (fn))
+                self.p._errCb("\"%s\" is not readable but writable by group." % (fn))
             if not (s.st_mode & stat.S_IROTH) and (s.st_mode & stat.S_IWOTH):
-                self.p._checkResult.append("\"%s\" is not readable but writable by other." % (fn))
+                self.p._errCb("\"%s\" is not readable but writable by other." % (fn))
             if not (s.st_mode & stat.S_IRGRP) and ((s.st_mode & stat.S_IROTH) or (s.st_mode & stat.S_IWOTH)):
-                self.p._checkResult.append("\"%s\" is not readable by group but readable/writable by other." % (fn))
+                self.p._errCb("\"%s\" is not readable by group but readable/writable by other." % (fn))
             if not (s.st_mode & stat.S_IWGRP) and (s.st_mode & stat.S_IWOTH):
-                self.p._checkResult.append("\"%s\" is not writable by group but writable by other." % (fn))
+                self.p._errCb("\"%s\" is not writable by group but writable by other." % (fn))
 
         # common check
         if True:
             if (s.st_mode & stat.S_ISVTX):
-                self.p._checkResult.append("\"%s\" should not have sticky bit set." % (fn))
+                self.p._errCb("\"%s\" should not have sticky bit set." % (fn))
 
         # dedicated check for symlink
         if stat.S_ISLNK(s.st_mode):
             if not os.path.exists(fullfn):
-                self.p._checkResult.append("\"%s\" is a broken symlink." % (fn))
+                self.p._errCb("\"%s\" is a broken symlink." % (fn))
             if stat.S_IMODE(s.st_mode) != 0o0777:
-                self.p._checkResult.append("\"%s\" has invalid permission." % (fn))
+                self.p._errCb("\"%s\" has invalid permission." % (fn))
             return
 
         # dedicated check for directory
         if stat.S_ISDIR(s.st_mode):
             if (s.st_mode & stat.S_ISUID):
-                self.p._checkResult.append("\"%s\" should not have SUID bit set." % (fn))
+                self.p._errCb("\"%s\" should not have SUID bit set." % (fn))
             if (s.st_mode & stat.S_ISGID):
                 # if showdn.startswith("/var/lib/portage"):
                 #     pass        # FIXME, portage set SGID for these directories?
@@ -1179,7 +1157,7 @@ class _HelperPrefixedDirOp:
                 # elif showdn.startswith("/var/log/journal"):
                 #     pass        # FIXME, systemd set SGID for these directories?
                 # else:
-                #     self.p._checkResult.append("\"%s\" should not have SGID bit set." % (showdn))
+                #     self.p._errCb("\"%s\" should not have SGID bit set." % (showdn))
                 pass
             return
 
@@ -1194,7 +1172,7 @@ class _HelperPrefixedDirOp:
                 if not (s.st_mode & stat.S_IXOTH) and ((s.st_mode & stat.S_IROTH) or (s.st_mode & stat.S_IWOTH)):
                     bad = True
                 if bad:
-                    self.p._checkResult.append("\"%s\" is not appropriate for SUID bit." % (fn))
+                    self.p._errCb("\"%s\" is not appropriate for SUID bit." % (fn))
             if (s.st_mode & stat.S_ISGID):
                 # FIXME
                 # self.infoPrinter.printError("File \"%s\" should not have SGID bit set." % (showfn))
@@ -1202,7 +1180,7 @@ class _HelperPrefixedDirOp:
             return
 
         # all other file types are invalid for batch check
-        self.p._checkResult.append("Type of \"%s\" is invalid." % (fn))
+        self.p._errCb("Type of \"%s\" is invalid." % (fn))
 
     def _batchCheckOwnerGroup(self, fn, owner, group):
         assert self.__validPath(fn)
@@ -1218,7 +1196,7 @@ class _HelperPrefixedDirOp:
             if self.p._bAutoFix:
                 os.chmod(fullfn, mode)
             else:
-                self.p._checkResult.append("\"%s\" has invalid permission." % (fn))
+                self.p._errCb("\"%s\" has invalid permission." % (fn))
 
     def __checkOwnerGroup(self, fn, fullfn, owner, group):
         assert (owner is None and group is None) or (isinstance(owner, int) and isinstance(group, int)) or (isinstance(owner, str) and isinstance(group, str))
@@ -1238,13 +1216,13 @@ class _HelperPrefixedDirOp:
             if self.p._bAutoFix:
                 os.lchown(fullfn, ownerId, s.st_gid)
             else:
-                self.p._checkResult.append("\"%s\" has invalid owner." % (fn))
+                self.p._errCb("\"%s\" has invalid owner." % (fn))
 
         if s.st_gid != groupId:
             if self.p._bAutoFix:
                 os.lchown(fullfn, s.st_uid, groupId)
             else:
-                self.p._checkResult.append("\"%s\" has invalid owner group." % (fn))
+                self.p._errCb("\"%s\" has invalid owner group." % (fn))
 
     def __fn2fullfn(self, fn):
         return os.path.join(self.p._dirPrefix, fn[1:])
@@ -1374,3 +1352,7 @@ def _makeDeviceNodeFile(path, devType, major, minor, mode, owner, group):
     ownerId = pwd.getpwnam(owner).pw_uid
     groupId = grp.getgrnam(group).gr_gid
     os.chown(path, ownerId, groupId)
+
+
+def _doNothing(msg):
+    pass
