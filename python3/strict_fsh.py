@@ -273,7 +273,7 @@ class RootFs:
                 self._checkDir("/usr/local/src", 0o0755, "root", "root")
 
         # /usr/sbin
-        self._checkDir("/usr/sbin", 0o0755, "root", "root")
+        self._checkSymlink("/usr/sbin", "bin", "root", "root")
 
         # /usr/share
         self._checkDir("/usr/share", 0o0755, "root", "root")
@@ -420,7 +420,7 @@ class RootFs:
             if self._exists("/usr/opt/bin"):
                 ret.append("+ /usr/opt/bin")
         ret += [
-            "+ /usr/sbin",
+            "+ /usr/sbin",        # symlink
             "+ /usr/share",
         ]
         for fn in self._fullListDir("/usr"):
@@ -719,7 +719,7 @@ class PreMountRootFs:
                     self._checkDir("/usr/local/src")
 
             # /usr/sbin
-            self._checkDir("/usr/sbin")
+            self._checkUsrMergeSymlink("/usr/sbin", "bin")
 
             # /usr/share
             self._checkDir("/usr/share")
