@@ -42,13 +42,13 @@ __version__ = "0.0.1"
 
 WILDCARDS_LAYOUT = 1             # FSH layout files
 WILDCARDS_SYSTEM = 2             # system files
-WILDCARDS_SYSTEM_CFG = 3         # system config files, subset of system files
-WILDCARDS_SYSTEM_DATA = 4        # system data files, subset of system files
-WILDCARDS_SYSTEM_CACHE = 5       # system cache files, subset of system files
-WILDCARDS_USER = 6               # user files (including root user)
-WILDCARDS_USER_CACHE = 7         # user cache files, subset of user files
-WILDCARDS_USER_TRASH = 8         # trash files, subset of user files
-WILDCARDS_BOOT = 9               # boot files, subset of system files
+WILDCARDS_SYSTEM_BOOT = 3        # system boot files, subset of system files
+WILDCARDS_SYSTEM_CFG = 4         # system config files, subset of system files
+WILDCARDS_SYSTEM_DATA = 5        # system data files, subset of system files
+WILDCARDS_SYSTEM_CACHE = 6       # system cache files, subset of system files
+WILDCARDS_USER = 7               # user files (including root user)
+WILDCARDS_USER_CACHE = 8         # user cache files, subset of user files
+WILDCARDS_USER_TRASH = 9         # trash files, subset of user files
 WILDCARDS_RUNTIME = 10           # runtime files
 
 
@@ -128,6 +128,9 @@ class RootFs:
             ret += self._getWildcardsSystemData()
             ret += self._getWildcardsSystemCache()
             return ret
+        if wildcards_flag == WILDCARDS_SYSTEM_BOOT:
+            assert user is None
+            return self._getWildcardsSystemBoot()
         if wildcards_flag == WILDCARDS_SYSTEM_CFG:
             assert user is None
             return self._getWildcardsSystemCfg()
@@ -143,9 +146,6 @@ class RootFs:
             return self._getWildcardsUserCache(user)
         if wildcards_flag == WILDCARDS_USER_TRASH:
             return self._getWildcardsUserTrash(user)
-        if wildcards_flag == WILDCARDS_BOOT:
-            assert user is None
-            return self._getWildcardsBoot()
         if wildcards_flag == WILDCARDS_RUNTIME:
             assert user is None
             return self._getWildcardsRuntime()
@@ -454,6 +454,13 @@ class RootFs:
             "+ /usr/**",
         ]
 
+    def _getWildcardsSystemBoot(self):
+        return [
+            "+ /boot/**",
+            "+ /usr/lib/modules/***",
+            "+ /usr/lib/firmware/***",
+        ]
+
     def _getWildcardsSystemCfg(self):
         return [
             "+ /etc/**",
@@ -508,13 +515,6 @@ class RootFs:
                     ret.append("+ %s/.local/share/Trash/**" % (fn))
         assert len(ret) > 0
         return ret
-
-    def _getWildcardsBoot(self):
-        return [
-            "+ /boot/**",
-            "+ /usr/lib/modules/***",
-            "+ /usr/lib/firmware/***",
-        ]
 
     def _getWildcardsRuntime(self):
         ret = [
