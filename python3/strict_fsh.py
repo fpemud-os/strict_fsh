@@ -44,9 +44,9 @@ WILDCARDS_LAYOUT = 1             # FSH layout files
 WILDCARDS_SYSTEM = 2             # system files
 WILDCARDS_SYSTEM_DATA = 3        # system data files
 WILDCARDS_SYSTEM_CACHE = 4       # system cache files, subset of system data files
-WILDCARDS_USER_DATA = 5          # user data files (including root user)
-WILDCARDS_USER_CACHE = 6         # user cache files, subset of user data files
-WILDCARDS_USER_TRASH = 7         # trash files, subset of user data files
+WILDCARDS_USER = 5               # user files (including root user)
+WILDCARDS_USER_CACHE = 6         # user cache files, subset of user files
+WILDCARDS_USER_TRASH = 7         # trash files, subset of user files
 WILDCARDS_BOOT = 8               # boot files, subset of system files
 WILDCARDS_RUNTIME = 9            # runtime files
 
@@ -129,7 +129,7 @@ class RootFs:
         if wildcards_flag == WILDCARDS_SYSTEM_CACHE:
             assert user is None
             return self._getWildcardsSystemCache()
-        if wildcards_flag == WILDCARDS_USER_DATA:
+        if wildcards_flag == WILDCARDS_USER:
             return self._getWildcardsUserData(user)
         if wildcards_flag == WILDCARDS_USER_CACHE:
             return self._getWildcardsUserCache(user)
