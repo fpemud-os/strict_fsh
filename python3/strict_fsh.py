@@ -42,13 +42,14 @@ __version__ = "0.0.1"
 
 WILDCARDS_LAYOUT = 1             # FSH layout files
 WILDCARDS_SYSTEM = 2             # system files
-WILDCARDS_SYSTEM_DATA = 3        # system data files
-WILDCARDS_SYSTEM_CACHE = 4       # system cache files, subset of system data files
-WILDCARDS_USER = 5               # user files (including root user)
-WILDCARDS_USER_CACHE = 6         # user cache files, subset of user files
-WILDCARDS_USER_TRASH = 7         # trash files, subset of user files
-WILDCARDS_BOOT = 8               # boot files, subset of system files
-WILDCARDS_RUNTIME = 9            # runtime files
+WILDCARDS_SYSTEM_CFG = 3         # system config files, subset of system files
+WILDCARDS_SYSTEM_DATA = 4        # system data files, subset of system files
+WILDCARDS_SYSTEM_CACHE = 5       # system cache files, subset of system files
+WILDCARDS_USER = 6               # user files (including root user)
+WILDCARDS_USER_CACHE = 7         # user cache files, subset of user files
+WILDCARDS_USER_TRASH = 8         # trash files, subset of user files
+WILDCARDS_BOOT = 9               # boot files, subset of system files
+WILDCARDS_RUNTIME = 10           # runtime files
 
 
 def merge_wildcards(wildcards1, wildcards2):
@@ -109,7 +110,6 @@ class RootFs:
       * /var/empty as a system wide empty directory
       * optional toolchain directories in /usr
       * optional per-user runtime directory /run/user/*
-      * optional per-user cache directory /var/cache/user/*
     """
 
     def __init__(self, dirPrefix="/"):
@@ -122,7 +122,15 @@ class RootFs:
             return self._getWildcardsLayout()
         if wildcards_flag == WILDCARDS_SYSTEM:
             assert user is None
-            return self._getWildcardsSystem()
+            ret = []
+            ret += self._getWildcardsSystemBasic()
+            ret += self._getWildcardsSystemCfg()
+            ret += self._getWildcardsSystemData()
+            ret += self._getWildcardsSystemCache()
+            return ret
+        if wildcards_flag == WILDCARDS_SYSTEM_CFG:
+            assert user is None
+            return self._getWildcardsSystemCfg()
         if wildcards_flag == WILDCARDS_SYSTEM_DATA:
             assert user is None
             return self._getWildcardsSystemData()
@@ -130,7 +138,7 @@ class RootFs:
             assert user is None
             return self._getWildcardsSystemCache()
         if wildcards_flag == WILDCARDS_USER:
-            return self._getWildcardsUserData(user)
+            return self._getWildcardsUser(user)
         if wildcards_flag == WILDCARDS_USER_CACHE:
             return self._getWildcardsUserCache(user)
         if wildcards_flag == WILDCARDS_USER_TRASH:
@@ -294,15 +302,6 @@ class RootFs:
         if self._exists("/var/cache"):
             self._checkDir("/var/cache", 0o0755, "root", "root")
 
-            # /var/cache/user
-            if self._exists("/var/cache/user"):
-                self._checkDir("/var/cache/user", 0o0755, "root", "root")
-                for fn in self._fullListDir("/var/cache/user"):
-                    userId = int(os.path.basename(fn))
-                    self._checkDir(fn, 0o0700, userId, userId)      # user id is used as directory name
-                    userName = pwd.getpwuid(userId).pw_name
-                    self._checkSymlink("/home/%s/.cache" % (userName), os.path.join("..", "..", fn[1:]))    # FIXME: compatibile to XDG specification
-
         # /var/db
         if self._exists("/var/db"):
             self._checkDir("/var/db", 0o0755, "root", "root")
@@ -348,7 +347,7 @@ class RootFs:
         self._checkNoRedundantFilesWithoutRecursion("/var")
 
     def _doCheckSystemFiles(self):
-        for fn in self._wildcardsGlob(self._getWildcardsSystem()):
+        for fn in self._wildcardsGlob(self._getWildcardsSystemBasic()):
             self._batchCheckBasic(fn)
 
     def _doCheckSystemDataFiles(self):
@@ -358,7 +357,7 @@ class RootFs:
     def _doCheckUserDataFiles(self):
         for fn in self._fullListDir("/home"):
             userName = os.path.basename(fn)
-            for fn in self._wildcardsGlob(self._getWildcardsUserData(userName)):
+            for fn in self._wildcardsGlob(self._getWildcardsUser(userName)):
                 self._batchCheckBasic(fn)
                 self._batchCheckOwnerGroup(fn, userName, userName)
 
@@ -431,8 +430,6 @@ class RootFs:
         ]
         if self._exists("/var/cache"):
             ret.append("+ /var/cache")
-            if self._exists("/var/cache/user"):
-                ret.append("+ /var/cache/user")
         if self._exists("/var/db"):
             ret.append("+ /var/db")
         ret += [
@@ -451,17 +448,19 @@ class RootFs:
         ]
         return ret
 
-    def _getWildcardsSystem(self):
+    def _getWildcardsSystemBasic(self):
         return [
             "+ /boot/**",
-            "+ /etc/**",
             "+ /usr/**",
+        ]
+
+    def _getWildcardsSystemCfg(self):
+        return [
+            "+ /etc/**",
         ]
 
     def _getWildcardsSystemData(self):
         ret = []
-        if self._exists("/var/cache"):
-            ret.append("+ /var/cache/**")
         if self._exists("/var/db"):
             ret.append("+ /var/db/**")
         if self._exists("/var/lib"):
@@ -473,25 +472,16 @@ class RootFs:
     def _getWildcardsSystemCache(self):
         ret = []
         if self._exists("/var/cache"):
-            if self._exists("/var/cache/user"):
-                for fn in self._fullListDir("/var/cache"):  # exclude per-user cache directory
-                    if fn != "/var/cache/user":
-                        ret.append("+ %s/***" % (fn))
-            else:
-                ret.append("+ /var/cache/**")
+            ret.append("+ /var/cache/**")
         return ret
 
-    def _getWildcardsUserData(self, user):
+    def _getWildcardsUser(self, user):
         ret = []
         if user is None or user == "root":
             ret.append("+ /root/**")                # "/root" belongs to FSH layout
         for fn in self._fullListDir("/home"):
             if user is None or user == os.path.basename(fn):
-                ret.append("+ %s/***" % (fn))       # "/home/X" belongs to user data
-        if os.path.exists("/var/cache/user"):
-            for fn in self._fullListDir("/var/cache/user"):
-                if user is None or user == pwd.getpwuid(int(os.path.basename(fn))).pw_name:
-                    ret.append("+ %s/***" % (fn))
+                ret.append("+ %s/***" % (fn))       # "/home/X" belongs to user files
         assert len(ret) > 0
         return ret
 
@@ -504,10 +494,6 @@ class RootFs:
             if user is None or user == os.path.basename(fn):
                 if self._exists("%s/.cache" % (fn)):
                     ret.append("+ %s/.cache/**" % (fn))
-        if os.path.exists("/var/cache/user"):
-            for fn in self._fullListDir("/var/cache/user"):
-                if user is None or user == pwd.getpwuid(int(os.path.basename(fn))).pw_name:
-                    ret.append("+ %s/**" % (fn))
         assert len(ret) > 0
         return ret
 
