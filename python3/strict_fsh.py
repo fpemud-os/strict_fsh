@@ -452,6 +452,7 @@ class RootFs:
         return [
             "+ /boot/**",
             "+ /usr/**",
+            "+ /opt/**",
         ]
 
     def _getWildcardsSystemBoot(self):
