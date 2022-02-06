@@ -582,7 +582,7 @@ class RootFs:
 
 class PreMountRootFs:
 
-    def __init__(self, dir, mounted_boot=True, mounted_home=True, mounted_cache=True, mounted_var=True):
+    def __init__(self, dir, mounted_boot=True, mounted_home=True, mounted_var=True):
         self._helper = _HelperPrefixedDirOp(self)
         self._dirPrefix = dir
         self._bMountBoot = mounted_boot     # /boot is mounted
