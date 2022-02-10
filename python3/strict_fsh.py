@@ -508,8 +508,8 @@ class RootFs:
     def _getWildcardsUserTrash(self, user):
         ret = []
         if user is None or user == "root":
-            if self._exists("/root/.local/share/Trash"):
-                ret.append("+ /root/.local/share/Trash/**")
+            if self._exists("/var/.Trash-0"):
+                ret.append("+ /var/.Trash-0/**")
         for fn in self._fullListDir("/home"):
             if user is None or user == os.path.basename(fn):
                 if self._exists("%s/.local/share/Trash" % (fn)):
