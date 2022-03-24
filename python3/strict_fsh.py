@@ -582,10 +582,11 @@ class RootFs:
 
 class PreMountRootFs:
 
-    def __init__(self, dir, mounted_boot=True, mounted_home=True, mounted_var=True):
+    def __init__(self, dir, mounted_boot=True, mounted_etc=True, mounted_home=True, mounted_var=True):
         self._helper = _HelperPrefixedDirOp(self)
         self._dirPrefix = dir
         self._bMountBoot = mounted_boot     # /boot is mounted
+        self._bMountEtc = mounted_etc       # /etc is mounted
         self._bMountHome = mounted_home     # /root, /home/* are mounted
         self._bMountVar = mounted_var       # /var/cache, /var/db, /var/games, /var/lib, /var/log, /var/spool, /var/tmp, /var/www are mounted
 
@@ -611,6 +612,8 @@ class PreMountRootFs:
 
             # /etc
             self._checkDir("/etc")
+            if self._bMountEtc:
+                self._checkDirIsEmpty("/etc")
 
             # /home
             self._checkDir("/home")
